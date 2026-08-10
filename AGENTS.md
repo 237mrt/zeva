@@ -44,7 +44,64 @@ Bir özelliği yalnızca backend veya frontend tarafında yarım bırakma. Mümk
 - React Hook Form
 - Zod
 
-Frontend modern, koyu, sade ve tekstil atölyesinde hızlı kullanıma uygun olmalıdır. Gereksiz animasyonlardan ve karmaşık görsel yapılardan kaçın.
+## Arayüz ve tasarım kuralları
+
+Zeva arayüzü modern, koyu, sade, profesyonel ve tekstil atölyesinde hızlı kullanıma uygun olmalıdır.
+
+Tasarımda şu kuralları uygula:
+
+- Koyu tema ana tasarım dilidir.
+- Yüzeyler arasında yumuşak fakat belirgin ton farkları kullan.
+- Kart, tablo, form, modal, drawer ve menüler aynı tasarım sistemini kullanmalıdır.
+- Köşe yuvarlaklıkları, boşluklar, border ve gölge kullanımı tutarlı olmalıdır.
+- Tasarım temiz olmalı; gereksiz gradient, glow, glassmorphism ve dekoratif efektlerle kalabalıklaştırılmamalıdır.
+- Masaüstü kullanım önceliklidir ancak arayüz makul ölçüde responsive olmalıdır.
+- Veri yoğun ekranlarda okunabilirlik ve hızlı işlem yapabilme görsellikten daha önemlidir.
+
+### Geçişler ve mikro etkileşimler
+
+Arayüz statik veya sert hissettirmemelidir.
+
+- Hover, focus, açılma/kapanma ve durum değişikliklerinde yumuşak geçişler kullan.
+- Genel mikro geçiş sürelerini yaklaşık 150-250 ms aralığında tut.
+- Sayfa ve panel geçişlerinde hafif fade/translate gibi sade animasyonlar kullanılabilir.
+- Modal, drawer, dropdown ve popover açılış/kapanışları yumuşak olmalıdır.
+- Butonların hover, active, disabled ve loading durumları açıkça anlaşılmalıdır.
+- Animasyonlar kullanıcıyı bekletmemeli ve veri giriş hızını düşürmemelidir.
+- `prefers-reduced-motion` tercihini dikkate al.
+
+### Bildirim sistemi
+
+Tarayıcının `alert()` fonksiyonunu kullanıcı deneyiminin parçası olarak kullanma.
+
+Uygulama genelinde merkezi bir toast/bildirim sistemi kullan.
+
+Desteklenecek temel bildirim türleri:
+
+- başarı
+- hata
+- uyarı
+- bilgi
+
+Örnek kullanım alanları:
+
+- müşteri başarıyla oluşturuldu
+- iş emri güncellendi
+- ödeme kaydedildi
+- PDF oluşturuldu
+- bağlantı veya API hatası oluştu
+- doğrulama nedeniyle işlem tamamlanamadı
+
+Bildirimler kısa, anlaşılır ve Türkçe olmalıdır. Aynı hatayı gereksiz şekilde art arda göstermemeye çalış.
+
+Kritik ve geri alınamaz işlemlerde yalnızca toast kullanma; uygun onay modalı göster.
+
+### Loading ve boş durumlar
+
+- Veri yüklenen ekranlarda uygun skeleton/loading durumları kullan.
+- Küçük işlemlerde buton seviyesinde loading göstergesi kullan.
+- Boş liste ve sonuç bulunamayan durumlar için açıklayıcı empty state tasarla.
+- Kullanıcı bir işlem gönderdiğinde sistemin çalışıp çalışmadığını her zaman anlayabilmelidir.
 
 ## Backend mimarisi
 
