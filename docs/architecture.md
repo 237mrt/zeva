@@ -7,7 +7,7 @@ Zeva tek repository içerisinde iki uygulama barındıran bir monorepo olarak ge
 - `apps/backend`: backend API
 - `apps/frontend`: web arayüzü
 
-Frontend ve backend bağımsız branch'lerde paralel geliştirilecektir.
+Codex, projenin frontend, backend, veritabanı, test, CI ve dokümantasyon geliştirmesinden uçtan uca sorumludur.
 
 ## Backend
 
@@ -31,13 +31,14 @@ Temel akış:
 
 `Route -> Controller -> Service -> Repository -> Prisma -> MySQL`
 
-İlk modüller:
+Ana modüller:
 
 - auth
 - customers
 - customer-prices
 - work-orders
 - packages
+- printing
 - deliveries
 - payments
 - accounting
@@ -59,25 +60,32 @@ Teknolojiler:
 
 Frontend backend'e REST API üzerinden bağlanır.
 
-Geliştirmenin ilk aşamalarında backend endpointleri hazır değilse API sözleşmesine uygun mock veriler kullanılabilir.
+Arayüz modern, koyu, sade ve tekstil atölyesinde hızlı kullanıma uygun olacaktır.
 
-## Ortak çalışma
+## Özellik bazlı geliştirme
+
+Geliştirme frontend ve backend branch'lerine bölünmeyecek. Her özellik mümkün olduğunca uçtan uca geliştirilecektir.
+
+Örnek branch'ler:
+
+- `feature/project-setup`
+- `feature/auth`
+- `feature/customers`
+- `feature/work-orders`
+- `feature/packages`
+- `feature/accounting`
+- `feature/dashboard`
+- `feature/reports`
+
+Örneğin `feature/customers` branch'i müşteri veri modeli, backend API, doğrulama, testler ve frontend müşteri ekranlarını birlikte içerebilir.
+
+## Entegrasyon
 
 `main` stabil entegrasyon branch'idir.
 
-Backend feature branch örnekleri:
-
-- `backend/setup`
-- `backend/customers`
-- `backend/work-orders`
-
-Frontend feature branch örnekleri:
-
-- `frontend/setup`
-- `frontend/dashboard`
-- `frontend/customers`
-
 Tamamlanan özellikler Pull Request ile `main` branch'ine alınır.
+
+Pull Request merge edilmeden önce ilgili typecheck, lint, test ve build kontrolleri geçmelidir.
 
 ## Git
 
@@ -85,6 +93,7 @@ Commit açıklamaları Türkçe yazılır ve Conventional Commits ön ekleri kor
 
 Örnek:
 
-- `feat: müşteri yönetimini ekle`
+- `feat: müşteri yönetimini uçtan uca ekle`
 - `fix: iş emri durum kontrolünü düzelt`
-- `test: ödeme API testlerini ekle`
+- `test: ödeme entegrasyon testlerini ekle`
+- `ci: proje kalite kontrollerini ekle`
