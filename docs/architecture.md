@@ -60,7 +60,40 @@ Teknolojiler:
 
 Frontend backend'e REST API üzerinden bağlanır.
 
-Arayüz modern, koyu, sade ve tekstil atölyesinde hızlı kullanıma uygun olacaktır.
+### Tasarım dili
+
+Zeva'nın arayüzü modern, koyu, sade ve profesyonel olacaktır. Masaüstünde hızlı veri girişi ve veri yoğun ekranların okunabilirliği önceliklidir.
+
+Arayüzde:
+
+- yumuşak hover/focus geçişleri,
+- yaklaşık 150-250 ms mikro animasyonlar,
+- sade fade/translate sayfa ve panel geçişleri,
+- yumuşak modal, drawer, dropdown ve popover animasyonları,
+- tutarlı kart, tablo, form ve dialog bileşenleri,
+- skeleton/loading durumları,
+- açıklayıcı boş durum ekranları
+
+kullanılacaktır.
+
+Animasyonlar iş akışını yavaşlatmamalı ve `prefers-reduced-motion` tercihine saygı göstermelidir.
+
+### Bildirim sistemi
+
+Uygulama merkezi bir toast/bildirim sistemine sahip olacaktır.
+
+Bildirim türleri:
+
+- başarı
+- hata
+- uyarı
+- bilgi
+
+Müşteri oluşturma, iş emri güncelleme, ödeme kaydetme, PDF oluşturma ve API hataları gibi işlemler kullanıcıya uygun bildirimlerle geri bildirim vermelidir.
+
+Tarayıcı `alert()` kullanımı kullanıcı deneyiminin parçası olmayacaktır.
+
+Kritik veya geri alınamaz işlemlerde onay modalı kullanılacaktır.
 
 ## Özellik bazlı geliştirme
 
