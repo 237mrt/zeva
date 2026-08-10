@@ -8,8 +8,21 @@ Zeva, frontend ve backend uygulamalarının aynı repository içerisinde tutuldu
 
 - `apps/backend`: Node.js + TypeScript + Fastify + Prisma + MySQL backend
 - `apps/frontend`: React + TypeScript + Vite frontend
-- `docs`: ortak mimari ve API sözleşmeleri
+- `docs`: ürün, mimari ve API sözleşmeleri
 
-## Çalışma modeli
+## Geliştirme modeli
 
-Frontend ve backend ayrı feature branch'lerinde paralel olarak geliştirilecek, tamamlanan işler Pull Request üzerinden `main` branch'ine alınacaktır.
+Projenin tüm geliştirmesi Codex tarafından özellik bazlı feature branch'lerinde yürütülecektir.
+
+Her özellik mümkün olduğunca veritabanı, backend, frontend ve testleriyle birlikte uçtan uca tamamlanacaktır.
+
+Örnek branch'ler:
+
+- `feature/project-setup`
+- `feature/customers`
+- `feature/work-orders`
+- `feature/accounting`
+
+Tamamlanan özellikler Pull Request üzerinden `main` branch'ine alınacaktır. `main` stabil entegrasyon branch'i olarak korunacaktır.
+
+Commit mesajlarının açıklama kısmı Türkçe yazılır ve Conventional Commits ön ekleri kullanılır.
