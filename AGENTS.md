@@ -4,15 +4,20 @@ Zeva, frontend ve backend uygulamalarının aynı repository içerisinde gelişt
 
 ## Sorumluluk
 
-Codex yalnızca backend geliştirmesinden sorumludur.
+Codex, Zeva projesinin uçtan uca geliştirilmesinden sorumludur.
 
-Backend kaynak kodu:
+Sorumluluk alanları:
 
-`apps/backend/`
+- `apps/backend/`
+- `apps/frontend/`
+- veritabanı şeması ve migrationlar
+- API sözleşmeleri
+- testler
+- CI yapılandırmaları
+- teknik dokümantasyon
+- gerekli geliştirme araçları ve yapılandırmalar
 
-Açıkça istenmedikçe şu dizindeki dosyaları değiştirme:
-
-`apps/frontend/`
+Bir özelliği yalnızca backend veya frontend tarafında yarım bırakma. Mümkün olduğunda özelliği veritabanından arayüze kadar uçtan uca tamamla.
 
 ## Backend teknoloji yığını
 
@@ -29,7 +34,19 @@ Açıkça istenmedikçe şu dizindeki dosyaları değiştirme:
 - Argon2
 - pnpm
 
-## Mimari
+## Frontend teknoloji yığını
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- TanStack Query
+- React Hook Form
+- Zod
+
+Frontend modern, koyu, sade ve tekstil atölyesinde hızlı kullanıma uygun olmalıdır. Gereksiz animasyonlardan ve karmaşık görsel yapılardan kaçın.
+
+## Backend mimarisi
 
 Modüler monolith mimarisi kullan.
 
@@ -67,6 +84,29 @@ Controller katmanı ince tutulmalı ve HTTP ile ilgili işlemlerle ilgilenmelidi
 - Para değerlerinde uygun DECIMAL tipleri kullanılmalıdır.
 - Geri getirilebilir kayıtlar için soft delete kullanılmalıdır.
 - Tarihler veritabanında UTC olarak saklanmalıdır.
+- İş emri toplam adedi ile çuval/koli adetlerinin toplamı tutarlı şekilde doğrulanmalıdır.
+
+## Zeva iş alanları
+
+Proje şu ana iş alanlarını destekleyecek şekilde geliştirilecektir:
+
+- authentication
+- customers
+- customer prices
+- work orders
+- ironing and packaging
+- printing
+- sacks / packages
+- work order history
+- deliveries
+- payments
+- current account / accounting
+- dashboard
+- reports
+- settings
+- PDF çıktıları
+
+İş akışlarını geliştirirken `docs/` altındaki ürün ve API belgelerini temel al.
 
 ## Kalite
 
@@ -75,22 +115,29 @@ Bir özellik tamamlanmadan önce:
 - TypeScript typecheck çalıştır.
 - lint çalıştır.
 - testleri çalıştır.
+- build çalıştır.
 - mevcut testlerin bozulmadığını doğrula.
 - yeni davranış için gerekli testleri ekle.
 - başarısız testleri sessizce silme veya devre dışı bırakma.
 
-## Git ve commit kuralları
+## Git ve branch kuralları
 
 Doğrudan `main` üzerinde geliştirme yapma.
 
-Backend branch'leri `backend/` prefix'i kullanmalıdır.
+Özellik branch'leri `feature/` prefix'i kullanmalıdır.
 
 Örnekler:
 
-- `backend/setup`
-- `backend/customers`
-- `backend/work-orders`
-- `backend/payments`
+- `feature/project-setup`
+- `feature/auth`
+- `feature/customers`
+- `feature/work-orders`
+- `feature/packages`
+- `feature/accounting`
+- `feature/dashboard`
+- `feature/reports`
+
+Bir feature branch'i mümkün olduğunda ilgili özelliğin backend, frontend ve testlerini birlikte içermelidir.
 
 Commit mesajları TÜRKÇE yazılmalıdır.
 
@@ -109,11 +156,11 @@ Kullanılabilecek ön ekler:
 
 Doğru örnekler:
 
-- `chore: Fastify backend altyapısını oluştur`
-- `feat: müşteri yönetimini ekle`
+- `chore: Zeva geliştirme altyapısını oluştur`
+- `feat: müşteri yönetimini uçtan uca ekle`
 - `feat: iş emri oluşturma akışını ekle`
 - `fix: çuval adet toplamı kontrolünü düzelt`
-- `test: müşteri API entegrasyon testlerini ekle`
+- `test: müşteri entegrasyon testlerini ekle`
 - `refactor: müşteri servis katmanını sadeleştir`
 - `docs: Swagger dokümantasyonunu güncelle`
 
@@ -121,24 +168,14 @@ Doğru örnekler:
 
 Her dosya değişikliğinde commit oluşturma. Tek bir mantıksal geliştirme adımını temsil eden küçük ve anlamlı commitler oluştur.
 
-Tamamlanan commitleri aktif backend branch'ine push et.
+Tamamlanan commitleri aktif feature branch'ine push et.
 
-Bir backend özelliği tamamlandığında ve bütün kontroller geçtiğinde `main` branch'ine Pull Request hazırla.
+Bir özellik tamamlandığında ve bütün kontroller geçtiğinde `main` branch'ine Pull Request hazırla.
 
 Açıkça istenmedikçe Pull Request'i otomatik olarak merge etme.
-
-## Frontend koordinasyonu
-
-Frontend bağımsız olarak geliştirilmektedir.
-
-Frontend UI geliştirme.
-
-Backend ve frontend arasındaki ana sözleşme OpenAPI dokümantasyonudur.
-
-Frontend ekibinin paralel çalışabilmesi için endpoint, request, response ve enum değişikliklerini açık ve geriye dönük uyumlu tutmaya çalış.
 
 ## Kod dili
 
 Dosya, sınıf, fonksiyon, değişken ve teknik isimlendirmeler İngilizce olmalıdır.
 
-Kullanıcıya gösterilen hata ve açıklama mesajları Türkçe olabilir.
+Kullanıcıya gösterilen metinler Türkçe olmalıdır.
