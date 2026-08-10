@@ -1,0 +1,14 @@
+{
+  "name": "zeva",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev:backend": "pnpm --filter @zeva/backend dev",
+    "dev:frontend": "pnpm --filter @zeva/frontend dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  }
+}
