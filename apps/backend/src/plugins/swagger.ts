@@ -18,6 +18,7 @@ export async function registerSwagger(app: FastifyInstance): Promise<void> {
         { name: 'Authentication', description: 'Yönetici oturumu ve kimlik doğrulama endpointleri' },
         { name: 'Customers', description: 'Müşteri kayıtları ve soft-delete yaşam döngüsü' },
         { name: 'Customer Prices', description: 'Müşteri bazlı varsayılan hizmet fiyatları' },
+        { name: 'Work Orders', description: 'İş emri kayıtları, durumları ve soft-delete yaşam döngüsü' },
       ],
       components: {
         securitySchemes: {
