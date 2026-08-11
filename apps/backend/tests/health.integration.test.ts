@@ -3,9 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildApp } from '../src/app.js';
 import type { HealthData } from '../src/modules/health/health.controller.js';
-import type { SuccessResponse } from '../src/shared/http/api-response.js';
+import type { ErrorResponse, SuccessResponse } from '../src/shared/http/api-response.js';
 
-describe('GET /api/v1/health', () => {
+describe('API integration', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -35,5 +35,23 @@ describe('GET /api/v1/health', () => {
       },
     });
     expect(Number.isNaN(Date.parse(body.data.timestamp))).toBe(false);
+  });
+
+  it('bilinmeyen route için standart 404 hata cevabını döndürür', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/unknown',
+    });
+    const body = response.json<ErrorResponse>();
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers['content-type']).toContain('application/json');
+    expect(body).toEqual({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'İstenen kaynak bulunamadı.',
+      },
+    });
   });
 });
