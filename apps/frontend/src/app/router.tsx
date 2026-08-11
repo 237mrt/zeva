@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import { AppLoading } from '../components/feedback/app-loading';
+import { CustomerPage } from '../features/customers/customer-page';
 import { GuestRoute, ProtectedRoute } from '../components/auth/auth-routes';
 import { AppLayout } from '../layouts/app-layout';
 import { GlobalErrorPage } from '../pages/global-error-page';
@@ -68,13 +69,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'musteriler',
-            element: (
-              <ModulePlaceholderPage
-                eyebrow="İlişkiler"
-                title="Müşteriler"
-                description="Müşteri kayıtları, fiyatlar ve iletişim bilgileri bu bölümde yönetilecek."
-              />
-            ),
+            element: <CustomerPage />,
           },
           {
             path: 'muhasebe',
