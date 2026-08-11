@@ -46,6 +46,20 @@ Ana modüller:
 - reports
 - settings
 
+### Backend uygulama altyapısı
+
+Fastify uygulamasının oluşturulması `src/app.ts`, ağ portunun dinlenmesi ve kapanış sinyalleri `src/server.ts` sorumluluğundadır. Bu ayrım integration testlerinde gerçek port açmadan Fastify `inject` kullanımına izin verir.
+
+Ortak altyapı şu dizinlere ayrılır:
+
+- `src/config`: Zod ile environment doğrulama ve Pino ayarları
+- `src/plugins`: global hata yönetimi ve Swagger/OpenAPI kaydı
+- `src/routes`: `/api/v1` route prefix kaydı
+- `src/shared`: ortak hata ve API response yapıları
+- `src/modules`: domain ve sistem modülleri
+
+Prisma şeması ve migration altyapısı `apps/backend/prisma` altında tutulur. Domain modelleri ilgili feature geliştirmesi sırasında migration ile eklenir.
+
 ## Frontend
 
 Teknolojiler:
@@ -59,6 +73,19 @@ Teknolojiler:
 - Zod
 
 Frontend backend'e REST API üzerinden bağlanır.
+
+### Frontend uygulama altyapısı
+
+Frontend uygulaması aşağıdaki temel katmanları kullanır:
+
+- `src/app`: router ve uygulama provider'ları
+- `src/layouts`: ana uygulama yerleşimi
+- `src/components`: layout ve ortak geri bildirim bileşenleri
+- `src/contexts` ve `src/hooks`: toast ve confirmation dialog API'leri
+- `src/lib`: standart API response sözleşmesini kullanan istemci
+- `src/pages`: route seviyesindeki ekranlar
+
+TanStack Query'nin query ve mutation hataları merkezi Türkçe toast bildirimlerine bağlanır. Render hataları uygulama error boundary'siyle, route hataları router error ekranıyla ele alınır.
 
 ### Tasarım dili
 
@@ -119,6 +146,12 @@ Geliştirme frontend ve backend branch'lerine bölünmeyecek. Her özellik mümk
 Tamamlanan özellikler Pull Request ile `main` branch'ine alınır.
 
 Pull Request merge edilmeden önce ilgili typecheck, lint, test ve build kontrolleri geçmelidir.
+
+GitHub Actions, `main` hedefli Pull Request'lerde Node.js 24 ve repository'de sabitlenen pnpm sürümüyle sırasıyla install, typecheck, lint, test ve build kontrollerini çalıştırır.
+
+## Yerel geliştirme ortamı
+
+MySQL 8.4 geliştirme servisi kökteki `compose.yaml` ile çalıştırılır. Compose ortam değerlerini commitlenmeyen kök `.env` dosyasından alır. Örnek değerler `.env.example` dosyalarında tutulur ve gerçek secret içermez.
 
 ## Git
 
