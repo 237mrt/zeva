@@ -11,6 +11,14 @@ enum UserRole {
   ADMIN
 }
 
+enum WorkOrderType {
+  IRONING
+  PACKAGING
+  IRONING_PACKAGING
+  PRINTING
+  OTHER
+}
+
 model User {
   id           String   @id @default(cuid()) @db.VarChar(30)
   email        String   @unique @db.VarChar(191)
@@ -22,4 +30,37 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
 
   @@map("users")
+}
+
+model Customer {
+  id          String          @id @default(cuid()) @db.VarChar(30)
+  name        String          @db.VarChar(191)
+  contactName String?         @map("contact_name") @db.VarChar(120)
+  phone       String?         @db.VarChar(40)
+  address     String?         @db.VarChar(500)
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt   DateTime?       @map("deleted_at") @db.DateTime(3)
+  prices      CustomerPrice[]
+
+  @@index([deletedAt])
+  @@index([name])
+  @@index([contactName])
+  @@index([phone])
+  @@map("customers")
+}
+
+model CustomerPrice {
+  id         String        @id @default(cuid()) @db.VarChar(30)
+  customerId String        @map("customer_id") @db.VarChar(30)
+  type       WorkOrderType
+  unitPrice  Decimal       @map("unit_price") @db.Decimal(12, 2)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, type])
+  @@index([customerId])
+  @@map("customer_prices")
 }

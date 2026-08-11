@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastif
 import { loggerConfiguration } from './config/logger.js';
 import { prisma } from './lib/prisma.js';
 import type { AuthService } from './modules/auth/auth.service.js';
+import type { CustomerService } from './modules/customers/customer.service.js';
 import { registerAuthPlugin } from './plugins/auth.js';
 import { registerErrorHandlers } from './plugins/error-handler.js';
 import { apiV1Routes } from './routes/api-v1.js';
@@ -11,6 +12,7 @@ export interface BuildAppOptions {
   logger?: FastifyServerOptions['logger'];
   documentation?: boolean;
   authService?: AuthService;
+  customerService?: CustomerService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -25,6 +27,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(apiV1Routes, {
     prefix: '/api/v1',
     ...(options.authService ? { authService: options.authService } : {}),
+    ...(options.customerService ? { customerService: options.customerService } : {}),
   });
 
   app.addHook('onClose', async () => {
