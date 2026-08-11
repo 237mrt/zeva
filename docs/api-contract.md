@@ -52,7 +52,6 @@ Başarılı response:
 {
   "success": true,
   "data": {
-    "accessToken": "jwt-token",
     "user": {
       "id": "user-id",
       "email": "admin@example.com",
@@ -63,7 +62,7 @@ Başarılı response:
 }
 ```
 
-Başarılı login aynı JWT'yi `HttpOnly`, `SameSite=Strict` cookie olarak da gönderir. Production ortamında cookie `Secure` ve `__Host-` prefix'li olur. Login route'u IP başına dakikada beş istekle sınırlandırılır.
+Başarılı login JWT'yi response body içinde paylaşmaz; yalnızca JavaScript tarafından okunamayan `HttpOnly`, `SameSite=Strict` cookie ile gönderir. Production ortamında cookie `Secure` ve `__Host-` prefix'li olur. Login route'u IP başına dakikada beş istekle sınırlandırılır.
 
 Hata kodları:
 
@@ -87,7 +86,7 @@ Başarılı response:
 
 #### `GET /api/v1/auth/me`
 
-`Authorization: Bearer <token>` header'ı veya login sırasında üretilen HttpOnly cookie gerektirir.
+Login sırasında üretilen HttpOnly oturum cookie’sini gerektirir.
 
 Başarılı response:
 
@@ -107,8 +106,8 @@ Başarılı response:
 
 Hata kodları:
 
-- `UNAUTHORIZED` (`401`): token yoksa, geçersizse, süresi dolmuşsa veya kullanıcı artık bulunamıyorsa döner.
-- `ACCOUNT_DISABLED` (`403`): token sahibi kullanıcı devre dışı bırakılmışsa döner.
+- `UNAUTHORIZED` (`401`): oturum cookie’si yoksa, geçersizse, süresi dolmuşsa veya kullanıcı artık bulunamıyorsa döner.
+- `ACCOUNT_DISABLED` (`403`): oturum sahibi kullanıcı devre dışı bırakılmışsa döner.
 
 Auth response'ları hiçbir koşulda `passwordHash` veya başka hassas kullanıcı alanlarını içermez.
 

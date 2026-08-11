@@ -11,9 +11,9 @@ export function createAuthController(service: AuthService) {
     login: async (request: FastifyRequest, reply: FastifyReply) => {
       const input = loginSchema.parse(request.body);
       const user = await service.login(input);
-      const accessToken = await reply.jwtSign({ sub: user.id, role: user.role });
+      const sessionToken = await reply.jwtSign({ sub: user.id, role: user.role });
 
-      reply.setCookie(authCookieName, accessToken, {
+      reply.setCookie(authCookieName, sessionToken, {
         httpOnly: true,
         sameSite: 'strict',
         secure: env.NODE_ENV === 'production',
@@ -21,7 +21,7 @@ export function createAuthController(service: AuthService) {
         maxAge: jwtExpiresInSeconds(env.JWT_EXPIRES_IN),
       });
 
-      return successResponse({ accessToken, user });
+      return successResponse({ user });
     },
     logout: async (_request: FastifyRequest, reply: FastifyReply) => {
       reply.clearCookie(authCookieName, {

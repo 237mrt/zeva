@@ -67,7 +67,7 @@ export async function registerAuthPlugin(app: FastifyInstance): Promise<void> {
 
   app.decorate('authenticate', async (request: FastifyRequest) => {
     try {
-      await request.jwtVerify();
+      await request.jwtVerify({ onlyCookie: true });
     } catch {
       throw new AppError(401, 'UNAUTHORIZED', 'Oturumunuz geçersiz veya süresi dolmuş.');
     }

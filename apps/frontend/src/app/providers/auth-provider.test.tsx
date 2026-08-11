@@ -70,7 +70,7 @@ describe('AuthProvider', () => {
   it('yetkisiz session cevabını temizler ve login sonrası kullanıcıyı saklar', async () => {
     vi.spyOn(apiClient, 'request')
       .mockRejectedValueOnce(new ApiError('UNAUTHORIZED', 'Oturum geçersiz.', 401))
-      .mockResolvedValueOnce({ accessToken: 'token', user });
+      .mockResolvedValueOnce({ user });
 
     render(<SessionProbe />, { wrapper: TestProviders });
 

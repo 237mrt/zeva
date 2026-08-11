@@ -19,11 +19,6 @@ export async function registerSwagger(app: FastifyInstance): Promise<void> {
       ],
       components: {
         securitySchemes: {
-          bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
-          },
           cookieAuth: {
             type: 'apiKey',
             in: 'cookie',

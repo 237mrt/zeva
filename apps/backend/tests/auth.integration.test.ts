@@ -9,7 +9,6 @@ import type { ErrorResponse, SuccessResponse } from '../src/shared/http/api-resp
 import { InMemoryAuthRepository } from './helpers/in-memory-auth-repository.js';
 
 interface LoginData {
-  accessToken: string;
   user: {
     id: string;
     email: string;
@@ -70,7 +69,7 @@ describe('Authentication integration', () => {
     });
   }
 
-  it('doğru bilgilerle login işlemini tamamlar', async () => {
+  it('login tokenı yalnızca cookie ile taşır ve cookie ile mevcut kullanıcıyı döndürür', async () => {
     const response = await login();
     const body = response.json<SuccessResponse<LoginData>>();
 
@@ -86,9 +85,24 @@ describe('Authentication integration', () => {
         },
       },
     });
-    expect(body.data.accessToken.split('.')).toHaveLength(3);
-    expect(response.headers['set-cookie']).toContain('HttpOnly');
-    expect(response.headers['set-cookie']).toContain('SameSite=Strict');
+    expect(body.data).not.toHaveProperty('accessToken');
+
+    const setCookieHeader = response.headers['set-cookie'];
+    expect(setCookieHeader).toBeDefined();
+    expect(setCookieHeader).toContain('HttpOnly');
+    expect(setCookieHeader).toContain('SameSite=Strict');
+
+    const cookie = (Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader)?.split(
+      ';',
+    )[0];
+    const meResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { cookie: cookie ?? '' },
+    });
+
+    expect(meResponse.statusCode).toBe(200);
+    expect(meResponse.json<SuccessResponse<MeData>>().data.user.id).toBe('active-admin');
   });
 
   it('yanlış email için genel kimlik bilgisi hatası döndürür', async () => {
@@ -118,33 +132,21 @@ describe('Authentication integration', () => {
     expect(response.json<ErrorResponse>().error.code).toBe('ACCOUNT_DISABLED');
   });
 
-  it('geçerli Bearer token ile mevcut kullanıcıyı döndürür', async () => {
-    const loginResponse = await login();
-    const { accessToken } = loginResponse.json<SuccessResponse<LoginData>>().data;
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/auth/me',
-      headers: { authorization: `Bearer ${accessToken}` },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json<SuccessResponse<MeData>>().data.user.email).toBe('admin@zeva.test');
-  });
-
-  it('HttpOnly cookie ile mevcut kullanıcıyı döndürür', async () => {
+  it('Bearer header ile mevcut kullanıcı isteğini reddeder', async () => {
     const loginResponse = await login();
     const setCookieHeader = loginResponse.headers['set-cookie'];
     const cookie = (Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader)?.split(
       ';',
     )[0];
+    const sessionToken = cookie?.split('=')[1] ?? '';
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
-      headers: { cookie: cookie ?? '' },
+      headers: { authorization: `Bearer ${sessionToken}` },
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json<SuccessResponse<MeData>>().data.user.id).toBe('active-admin');
+    expect(response.statusCode).toBe(401);
+    expect(response.json<ErrorResponse>().error.code).toBe('UNAUTHORIZED');
   });
 
   it('logout işleminde HttpOnly oturum cookie’sini temizler', async () => {
@@ -170,11 +172,11 @@ describe('Authentication integration', () => {
     expect(response.json<ErrorResponse>().error.code).toBe('UNAUTHORIZED');
   });
 
-  it('geçersiz token ile mevcut kullanıcı isteğini reddeder', async () => {
+  it('geçersiz cookie ile mevcut kullanıcı isteğini reddeder', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/auth/me',
-      headers: { authorization: 'Bearer invalid-token' },
+      headers: { cookie: 'zeva_access_token=invalid-token' },
     });
 
     expect(response.statusCode).toBe(401);

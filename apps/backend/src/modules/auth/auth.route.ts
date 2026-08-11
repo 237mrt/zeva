@@ -18,9 +18,8 @@ const loginSuccessResponseSchema = {
     data: {
       type: 'object',
       additionalProperties: false,
-      required: ['accessToken', 'user'],
+      required: ['user'],
       properties: {
-        accessToken: { type: 'string' },
         user: authUserResponseSchema,
       },
     },
@@ -70,7 +69,7 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (app, option
     schema: {
       operationId: 'login',
       summary: 'Yönetici oturumu açar',
-      description: 'E-posta ve şifreyle doğrulama yapar; JWT erişim tokenı ve HttpOnly oturum cookie’si üretir.',
+      description: 'E-posta ve şifreyle doğrulama yapar; JWT’yi güvenli HttpOnly oturum cookie’sine yazar.',
       tags: ['Authentication'],
       body: {
         type: 'object',
@@ -111,7 +110,7 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (app, option
       operationId: 'getCurrentUser',
       summary: 'Aktif oturum kullanıcısını getirir',
       tags: ['Authentication'],
-      security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+      security: [{ cookieAuth: [] }],
       response: {
         200: meSuccessResponseSchema,
         401: errorResponseSchema,

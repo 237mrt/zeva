@@ -11,7 +11,6 @@ import {
 import { apiClient, ApiError } from '../../lib/api-client';
 
 interface LoginResponseData {
-  accessToken: string;
   user: AuthUser;
 }
 
@@ -63,7 +62,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await apiClient.request<Record<string, never>>('/auth/logout', {
       method: 'POST',
     });
-    apiClient.setAccessToken(null);
     queryClient.setQueryData(authSessionQueryKey, null);
   }, [queryClient]);
 
