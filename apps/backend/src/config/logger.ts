@@ -7,7 +7,16 @@ type LoggerConfiguration = Exclude<FastifyServerOptions['logger'], boolean | und
 export const loggerConfiguration: LoggerConfiguration = {
   level: env.LOG_LEVEL,
   redact: {
-    paths: ['req.headers.authorization', 'req.headers.cookie'],
+    paths: [
+      'req.headers.authorization',
+      'req.headers.cookie',
+      'res.headers["set-cookie"]',
+      'req.body.password',
+      'password',
+      'passwordHash',
+      '*.password',
+      '*.passwordHash',
+    ],
     censor: '[REDACTED]',
   },
   ...(env.NODE_ENV === 'development'

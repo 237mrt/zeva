@@ -11,7 +11,24 @@ export async function registerSwagger(app: FastifyInstance): Promise<void> {
         description: 'Zeva tekstil atölyesi yönetim sistemi API dokümantasyonu.',
         version: '0.1.0',
       },
-      tags: [{ name: 'System', description: 'Sistem durumu endpointleri' }],
+      tags: [
+        { name: 'System', description: 'Sistem durumu endpointleri' },
+        { name: 'Authentication', description: 'Yönetici oturumu ve kimlik doğrulama endpointleri' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+          },
+          cookieAuth: {
+            type: 'apiKey',
+            in: 'cookie',
+            name: 'zeva_access_token',
+          },
+        },
+      },
     },
   });
 
