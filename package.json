@@ -12,7 +12,7 @@
     "dev:backend": "pnpm --filter @zeva/backend dev",
     "dev:frontend": "pnpm --filter @zeva/frontend dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter @zeva/backend test && pnpm --filter @zeva/frontend test",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "db:up": "docker compose up -d mysql",

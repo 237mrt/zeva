@@ -9,7 +9,7 @@ describe('GET /api/v1/health', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = await buildApp({ logger: false });
+    app = await buildApp({ logger: false, documentation: false });
     await app.ready();
   });
 
