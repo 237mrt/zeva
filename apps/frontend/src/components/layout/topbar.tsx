@@ -2,6 +2,7 @@ import { Menu, Search } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import { navigationItems } from '../../app/navigation';
+import { useAuth } from '../../hooks/use-auth';
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -9,9 +10,17 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const location = useLocation();
+  const { user } = useAuth();
   const currentItem = navigationItems.find((item) =>
     item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
   );
+  const initials =
+    user?.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toLocaleUpperCase('tr-TR'))
+      .join('') || 'ZV';
 
   return (
     <header className="sticky top-0 z-20 flex h-18 items-center justify-between border-b border-[var(--zeva-border)] bg-[color:var(--zeva-bg)]/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
@@ -49,9 +58,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           aria-label="Kullanıcı menüsü"
         >
           <span className="grid size-7 place-items-center rounded-md bg-[#29362d] text-[11px] font-bold text-[#b9d4c1]">
-            ZV
+            {initials}
           </span>
-          <span className="hidden text-xs font-medium text-[#cbd1cc] sm:block">Yönetici</span>
+          <span className="hidden max-w-40 truncate text-xs font-medium text-[#cbd1cc] sm:block">
+            {user?.name ?? 'Yönetici'}
+          </span>
         </button>
       </div>
     </header>

@@ -37,6 +37,11 @@ function invalidApiResponse(statusCode: number): ApiError {
 
 class ApiClient {
   private readonly baseUrl = env.VITE_API_URL.replace(/\/$/, '');
+  private accessToken: string | null = null;
+
+  public setAccessToken(accessToken: string | null): void {
+    this.accessToken = accessToken;
+  }
 
   public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -50,9 +55,14 @@ class ApiClient {
       headers.set('Content-Type', 'application/json');
     }
 
+    if (this.accessToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${this.accessToken}`);
+    }
+
     const response = await fetch(`${this.baseUrl}${normalizedPath}`, {
       ...options,
       headers,
+      credentials: options.credentials ?? 'include',
     });
 
     let responseBody: unknown;

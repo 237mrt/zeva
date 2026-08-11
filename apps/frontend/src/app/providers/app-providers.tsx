@@ -9,6 +9,7 @@ import { type PropsWithChildren, useState } from 'react';
 import { ConfirmationDialogProvider } from '../../components/feedback/confirmation-dialog-provider';
 import { ToastProvider } from '../../components/feedback/toast-provider';
 import { useToast } from '../../hooks/use-toast';
+import { AuthProvider } from './auth-provider';
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Bağlantı sırasında beklenmeyen bir hata oluştu.';
@@ -49,7 +50,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <ToastProvider>
       <ConfirmationDialogProvider>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </QueryProvider>
       </ConfirmationDialogProvider>
     </ToastProvider>
   );
