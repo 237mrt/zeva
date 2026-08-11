@@ -19,7 +19,6 @@ export type RestoreCustomerResult = 'restored' | 'not_found' | 'already_active';
 
 export interface CustomerRepository {
   list(query: CustomerListQuery, deleted: boolean): Promise<CustomerRepositoryListResult>;
-  findById(id: string): Promise<CustomerRecord | null>;
   findActiveById(id: string): Promise<CustomerRecord | null>;
   create(input: CustomerWriteData): Promise<CustomerRecord>;
   updateActive(id: string, input: CustomerUpdateData): Promise<CustomerRecord | null>;
@@ -95,11 +94,6 @@ export class PrismaCustomerRepository implements CustomerRepository {
     ]);
 
     return { items: items.map(toCustomerRecord), total };
-  }
-
-  public async findById(id: string): Promise<CustomerRecord | null> {
-    const customer = await prisma.customer.findUnique({ where: { id } });
-    return customer ? toCustomerRecord(customer) : null;
   }
 
   public async findActiveById(id: string): Promise<CustomerRecord | null> {

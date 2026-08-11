@@ -51,11 +51,6 @@ export class InMemoryCustomerRepository implements CustomerRepository {
     });
   }
 
-  public findById(id: string): Promise<CustomerRecord | null> {
-    const customer = this.customers.get(id);
-    return Promise.resolve(customer ? { ...customer } : null);
-  }
-
   public findActiveById(id: string): Promise<CustomerRecord | null> {
     const customer = this.customers.get(id);
     return Promise.resolve(customer && !customer.deletedAt ? { ...customer } : null);
