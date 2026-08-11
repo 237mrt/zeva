@@ -12,6 +12,7 @@ function renderLogin(login: AuthContextValue['login']) {
     user: null,
     status: 'unauthenticated',
     login,
+    logout: () => Promise.resolve(),
     refreshSession: () => Promise.resolve(),
   };
 

@@ -44,6 +44,19 @@ const meSuccessResponseSchema = {
   },
 } as const;
 
+const logoutSuccessResponseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['success', 'data'],
+  properties: {
+    success: { type: 'boolean', const: true },
+    data: {
+      type: 'object',
+      additionalProperties: false,
+    },
+  },
+} as const;
+
 export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (app, options, done) => {
   const controller = createAuthController(options.service ?? authService);
 
@@ -77,6 +90,19 @@ export const authRoutes: FastifyPluginCallback<AuthRoutesOptions> = (app, option
       },
     },
     handler: controller.login,
+  });
+
+  app.post('/logout', {
+    schema: {
+      operationId: 'logout',
+      summary: 'Tarayıcı oturumunu kapatır',
+      description: 'HttpOnly oturum cookie’sini güvenli biçimde temizler.',
+      tags: ['Authentication'],
+      response: {
+        200: logoutSuccessResponseSchema,
+      },
+    },
+    handler: controller.logout,
   });
 
   app.get('/me', {

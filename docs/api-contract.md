@@ -72,6 +72,19 @@ Hata kodları:
 - `VALIDATION_ERROR` (`400`): request sözleşmesi geçersizse döner.
 - `RATE_LIMIT_EXCEEDED` (`429`): login deneme sınırı aşıldığında döner.
 
+#### `POST /api/v1/auth/logout`
+
+İstek gövdesi gerektirmez. Endpoint idempotent çalışır ve mevcut HttpOnly oturum cookie’sini temizler.
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
 #### `GET /api/v1/auth/me`
 
 `Authorization: Bearer <token>` header'ı veya login sırasında üretilen HttpOnly cookie gerektirir.

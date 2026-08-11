@@ -27,7 +27,7 @@ function TestProviders({ children }: PropsWithChildren) {
 }
 
 function SessionProbe() {
-  const { user: sessionUser, status, login } = useAuth();
+  const { user: sessionUser, status, login, logout } = useAuth();
 
   return (
     <div>
@@ -40,6 +40,14 @@ function SessionProbe() {
         }}
       >
         Oturum aç
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void logout();
+        }}
+      >
+        Oturumu kapat
       </button>
     </div>
   );
@@ -71,5 +79,20 @@ describe('AuthProvider', () => {
 
     expect(await screen.findByText('Zeva Yöneticisi')).toBeTruthy();
     expect(screen.getByText('authenticated')).toBeTruthy();
+  });
+
+  it('logout cevabından sonra session kullanıcısını temizler', async () => {
+    const request = vi
+      .spyOn(apiClient, 'request')
+      .mockResolvedValueOnce({ user })
+      .mockResolvedValueOnce({});
+
+    render(<SessionProbe />, { wrapper: TestProviders });
+
+    expect(await screen.findByText('authenticated')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Oturumu kapat' }));
+
+    expect(await screen.findByText('unauthenticated')).toBeTruthy();
+    expect(request).toHaveBeenLastCalledWith('/auth/logout', { method: 'POST' });
   });
 });

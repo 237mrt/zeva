@@ -59,6 +59,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [queryClient],
   );
 
+  const logout = useCallback(async (): Promise<void> => {
+    await apiClient.request<Record<string, never>>('/auth/logout', {
+      method: 'POST',
+    });
+    apiClient.setAccessToken(null);
+    queryClient.setQueryData(authSessionQueryKey, null);
+  }, [queryClient]);
+
   const refreshSession = useCallback(async (): Promise<void> => {
     await sessionQuery.refetch();
   }, [sessionQuery]);
@@ -78,9 +86,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       user: sessionQuery.data ?? null,
       status,
       login,
+      logout,
       refreshSession,
     }),
-    [login, refreshSession, sessionQuery.data, status],
+    [login, logout, refreshSession, sessionQuery.data, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

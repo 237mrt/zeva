@@ -97,7 +97,7 @@ Frontend uygulaması aşağıdaki temel katmanları kullanır:
 
 TanStack Query'nin query ve mutation hataları merkezi Türkçe toast bildirimlerine bağlanır. Render hataları uygulama error boundary'siyle, route hataları router error ekranıyla ele alınır.
 
-Frontend başlangıcında `GET /api/v1/auth/me` ile HttpOnly cookie session'ı doğrulanır. Bu kontrol tamamlanana kadar session skeleton'ı gösterilir. Korumalı route'lar oturumsuz kullanıcıları `/login` sayfasına, aktif oturumu olan `/login` ziyaretçilerini ana uygulamaya yönlendirir.
+Frontend başlangıcında `GET /api/v1/auth/me` ile HttpOnly cookie session'ı doğrulanır. Bu kontrol tamamlanana kadar session skeleton'ı gösterilir. Korumalı route'lar oturumsuz kullanıcıları `/login` sayfasına, aktif oturumu olan `/login` ziyaretçilerini ana uygulamaya yönlendirir. Kullanıcı çıkış yaptığında `POST /api/v1/auth/logout` oturum cookie'sini temizler; frontend session cache'ini sıfırlayıp kullanıcıyı login ekranına taşır.
 
 ### Tasarım dili
 

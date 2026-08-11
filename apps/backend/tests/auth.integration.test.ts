@@ -147,6 +147,22 @@ describe('Authentication integration', () => {
     expect(response.json<SuccessResponse<MeData>>().data.user.id).toBe('active-admin');
   });
 
+  it('logout işleminde HttpOnly oturum cookie’sini temizler', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json<SuccessResponse<Record<string, never>>>()).toEqual({
+      success: true,
+      data: {},
+    });
+    expect(response.headers['set-cookie']).toContain('zeva_access_token=;');
+    expect(response.headers['set-cookie']).toContain('HttpOnly');
+    expect(response.headers['set-cookie']).toContain('SameSite=Strict');
+  });
+
   it('token olmadan mevcut kullanıcı isteğini reddeder', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/auth/me' });
 

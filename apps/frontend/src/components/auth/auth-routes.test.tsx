@@ -17,6 +17,7 @@ function renderRoutes(status: AuthContextValue['status'], initialEntry: string) 
     user: status === 'authenticated' ? user : null,
     status,
     login: () => Promise.resolve(user),
+    logout: () => Promise.resolve(),
     refreshSession: () => Promise.resolve(),
   };
 

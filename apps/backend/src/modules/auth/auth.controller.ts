@@ -23,6 +23,16 @@ export function createAuthController(service: AuthService) {
 
       return successResponse({ accessToken, user });
     },
+    logout: async (_request: FastifyRequest, reply: FastifyReply) => {
+      reply.clearCookie(authCookieName, {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: env.NODE_ENV === 'production',
+        path: '/',
+      });
+
+      return successResponse({});
+    },
     me: async (request: FastifyRequest) => {
       const user = await service.getCurrentUser(request.user.sub);
       return successResponse({ user });
