@@ -2,6 +2,8 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import type { FastifyInstance } from 'fastify';
 
+import { authCookieName } from './auth.js';
+
 export async function registerSwagger(app: FastifyInstance): Promise<void> {
   await app.register(swagger, {
     openapi: {
@@ -25,7 +27,7 @@ export async function registerSwagger(app: FastifyInstance): Promise<void> {
           cookieAuth: {
             type: 'apiKey',
             in: 'cookie',
-            name: 'zeva_access_token',
+            name: authCookieName,
           },
         },
       },

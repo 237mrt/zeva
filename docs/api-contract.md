@@ -33,8 +33,71 @@ Tüm endpointler `/api/v1` prefix'i kullanır.
 
 ### Auth
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
+Zeva public bir SaaS değildir. Public register endpointi bulunmaz. İlk yönetici hesabı güvenli bootstrap komutuyla oluşturulur.
+
+#### `POST /api/v1/auth/login`
+
+Request:
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "strong-password"
+}
+```
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "jwt-token",
+    "user": {
+      "id": "user-id",
+      "email": "admin@example.com",
+      "name": "Zeva Yöneticisi",
+      "role": "ADMIN"
+    }
+  }
+}
+```
+
+Başarılı login aynı JWT'yi `HttpOnly`, `SameSite=Strict` cookie olarak da gönderir. Production ortamında cookie `Secure` ve `__Host-` prefix'li olur. Login route'u IP başına dakikada beş istekle sınırlandırılır.
+
+Hata kodları:
+
+- `INVALID_CREDENTIALS` (`401`): email bulunamadığında ve şifre yanlış olduğunda aynı genel mesaj kullanılır.
+- `ACCOUNT_DISABLED` (`403`): doğru bilgilerle giriş yapan kullanıcı aktif değilse döner.
+- `VALIDATION_ERROR` (`400`): request sözleşmesi geçersizse döner.
+- `RATE_LIMIT_EXCEEDED` (`429`): login deneme sınırı aşıldığında döner.
+
+#### `GET /api/v1/auth/me`
+
+`Authorization: Bearer <token>` header'ı veya login sırasında üretilen HttpOnly cookie gerektirir.
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user-id",
+      "email": "admin@example.com",
+      "name": "Zeva Yöneticisi",
+      "role": "ADMIN"
+    }
+  }
+}
+```
+
+Hata kodları:
+
+- `UNAUTHORIZED` (`401`): token yoksa, geçersizse, süresi dolmuşsa veya kullanıcı artık bulunamıyorsa döner.
+- `ACCOUNT_DISABLED` (`403`): token sahibi kullanıcı devre dışı bırakılmışsa döner.
+
+Auth response'ları hiçbir koşulda `passwordHash` veya başka hassas kullanıcı alanlarını içermez.
 
 ### Customers
 

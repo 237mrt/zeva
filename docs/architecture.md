@@ -60,6 +60,16 @@ Ortak altyapı şu dizinlere ayrılır:
 
 Prisma şeması ve migration altyapısı `apps/backend/prisma` altında tutulur. Prisma ORM 7 yapılandırması `apps/backend/prisma.config.ts` dosyasındadır; Rust bağımsız `prisma-client` generator'ı çıktısını `src/generated/prisma` altına üretir ve MySQL bağlantısı `@prisma/adapter-mariadb` ile kurulur. Domain modelleri ilgili feature geliştirmesi sırasında migration ile eklenir.
 
+### Authentication mimarisi
+
+Authentication modülü `src/modules/auth` altında route, controller, service, repository, schema ve type sorumluluklarına ayrılır. Şifreler düz metin tutulmaz; Argon2id ile hashlenir. Public register endpointi bulunmaz. İlk `ADMIN` hesabı yalnızca environment değerlerini kullanan `db:bootstrap-admin` komutuyla oluşturulur; aynı normalize edilmiş e-posta için tekrar çalıştırılması yeni hesap veya istemsiz şifre sıfırlaması üretmez.
+
+JWT erişim tokenları kısa ömürlüdür, issuer ve audience doğrulaması kullanır. `JWT_SECRET` uygulama başlangıcında doğrulanır; en az 32 karakter ve yeterli çeşitlilik taşımayan ya da placeholder görünen değerler development dahil reddedilir. Authorization ve cookie header'ları, `Set-Cookie`, password ve password hash alanları Pino redaction listesinde bulunur.
+
+Tarayıcı oturumu için JWT, `HttpOnly`, `SameSite=Strict`, `/` path ve production ortamında `Secure` bayraklı cookie içinde saklanır. Production cookie adı `__Host-` prefix'i kullanır. Frontend tokenı `localStorage` veya `sessionStorage` içinde kalıcılaştırmaz; böylece XSS durumunda uzun süreli token okuma yüzeyi azaltılır. Login cevabındaki `accessToken` programatik REST istemcileri için korunur, tarayıcı frontend'i bu değeri saklamaz. API client gerektiğinde yalnızca process memory içindeki bir tokenı Bearer header olarak gönderebilir ve varsayılan tarayıcı akışında cookie kullanır.
+
+Cookie tabanlı akışta CSRF yüzeyi `SameSite=Strict` ve same-site frontend/API dağıtımıyla sınırlandırılır. Gelecekte cross-site dağıtım gerekirse explicit CSRF token mekanizması eklenmelidir. Login route'u IP başına dakikada beş denemeyle sınırlandırılır. İlk tek-instance dağıtımda memory store yeterlidir; yatay ölçeklemede merkezi bir rate-limit store kullanılmalıdır.
+
 ## Frontend
 
 Teknolojiler:
@@ -86,6 +96,8 @@ Frontend uygulaması aşağıdaki temel katmanları kullanır:
 - `src/pages`: route seviyesindeki ekranlar
 
 TanStack Query'nin query ve mutation hataları merkezi Türkçe toast bildirimlerine bağlanır. Render hataları uygulama error boundary'siyle, route hataları router error ekranıyla ele alınır.
+
+Frontend başlangıcında `GET /api/v1/auth/me` ile HttpOnly cookie session'ı doğrulanır. Bu kontrol tamamlanana kadar session skeleton'ı gösterilir. Korumalı route'lar oturumsuz kullanıcıları `/login` sayfasına, aktif oturumu olan `/login` ziyaretçilerini ana uygulamaya yönlendirir.
 
 ### Tasarım dili
 
