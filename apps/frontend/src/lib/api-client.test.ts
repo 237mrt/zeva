@@ -18,6 +18,7 @@ describe('ApiClient', () => {
   });
 
   afterEach(() => {
+    apiClient.setAccessToken(null);
     vi.unstubAllGlobals();
   });
 
@@ -51,6 +52,7 @@ describe('ApiClient', () => {
 
     expect(headers.get('Accept')).toBe('application/json');
     expect(headers.has('Content-Type')).toBe(false);
+    expect(requestOptions?.credentials).toBe('include');
   });
 
   it('JSON body bulunan isteğe Content-Type ekler', async () => {
@@ -65,5 +67,17 @@ describe('ApiClient', () => {
     const headers = new Headers(requestOptions?.headers);
 
     expect(headers.get('Content-Type')).toBe('application/json');
+  });
+
+  it('memory içindeki access tokenı Bearer header olarak gönderir', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, data: { id: '1' } }));
+    apiClient.setAccessToken('access-token');
+
+    await apiClient.request('/auth/me');
+
+    const requestOptions = fetchMock.mock.calls[0]?.[1];
+    const headers = new Headers(requestOptions?.headers);
+
+    expect(headers.get('Authorization')).toBe('Bearer access-token');
   });
 });
