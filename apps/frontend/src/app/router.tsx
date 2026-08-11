@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import { AppLoading } from '../components/feedback/app-loading';
 import { CustomerPage } from '../features/customers/customer-page';
+import { WorkOrderPage } from '../features/work-orders/work-order-page';
 import { GuestRoute, ProtectedRoute } from '../components/auth/auth-routes';
 import { AppLayout } from '../layouts/app-layout';
 import { GlobalErrorPage } from '../pages/global-error-page';
@@ -39,13 +40,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'isler',
-            element: (
-              <ModulePlaceholderPage
-                eyebrow="Operasyon"
-                title="İşler"
-                description="İş emirleri ve üretim adımları ilerleyen geliştirme aşamasında burada yönetilecek."
-              />
-            ),
+            element: <WorkOrderPage />,
           },
           {
             path: 'utu-paket',
