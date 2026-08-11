@@ -27,24 +27,46 @@ export class ApiError extends Error {
   }
 }
 
+function invalidApiResponse(statusCode: number): ApiError {
+  return new ApiError(
+    'INVALID_API_RESPONSE',
+    'Sunucudan geçersiz bir cevap alındı.',
+    statusCode,
+  );
+}
+
 class ApiClient {
   private readonly baseUrl = env.VITE_API_URL.replace(/\/$/, '');
 
   public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const headers = new Headers(options.headers);
+
+    if (!headers.has('Accept')) {
+      headers.set('Accept', 'application/json');
+    }
+
+    if (typeof options.body === 'string' && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     const response = await fetch(`${this.baseUrl}${normalizedPath}`, {
       ...options,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
-    const result = apiResponseSchema.safeParse(await response.json());
+    let responseBody: unknown;
+
+    try {
+      responseBody = await response.json();
+    } catch {
+      throw invalidApiResponse(response.status);
+    }
+
+    const result = apiResponseSchema.safeParse(responseBody);
 
     if (!result.success) {
-      throw new ApiError('INVALID_API_RESPONSE', 'Sunucudan geçersiz bir cevap alındı.', response.status);
+      throw invalidApiResponse(response.status);
     }
 
     if (!response.ok || !result.data.success) {
