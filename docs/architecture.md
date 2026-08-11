@@ -70,6 +70,14 @@ Tarayıcı oturumu için JWT yalnızca `HttpOnly`, `SameSite=Strict`, `/` path v
 
 Cookie tabanlı akışta CSRF yüzeyi `SameSite=Strict` ve same-site frontend/API dağıtımıyla sınırlandırılır. Gelecekte cross-site dağıtım gerekirse explicit CSRF token mekanizması eklenmelidir. Login route'u IP başına dakikada beş denemeyle sınırlandırılır. İlk tek-instance dağıtımda memory store yeterlidir; yatay ölçeklemede merkezi bir rate-limit store kullanılmalıdır.
 
+### Customer domain mimarisi
+
+Müşteri yönetimi `src/modules/customers` altında route, controller, service, repository, schema, mapper ve type sorumluluklarına ayrılır. Fastify uygulama fabrikası customer service bağımlılığını kabul eder; production'da Prisma repository, integration testlerinde ise aynı sözleşmeyi uygulayan in-memory repository kullanılır. Tüm customer route'ları mevcut HttpOnly cookie authentication hook'u ile korunur.
+
+`Customer` kayıtları `deletedAt` ile soft-delete edilir. Normal liste, detay, güncelleme ve fiyat endpointleri yalnızca aktif müşterileri görür; çöp kutusu ve restore akışları silinmiş kayıtları ayrı tutar. Arama `name`, `contactName` ve `phone` alanlarında MySQL'in case-insensitive `utf8mb4_unicode_ci` collation'ı üzerinden Prisma `contains` sorgularıyla yapılır; ham SQL kullanılmaz.
+
+`CustomerPrice`, müşteri ve `WorkOrderType` başına tek varsayılan fiyat tutar. Veritabanı `DECIMAL(12,2)` kullanır ve API bu değeri precision kaybetmeden canonical decimal string olarak taşır. PUT fiyat işlemi gönderilen listenin tam set olduğunu kabul eder ve silme/yeniden oluşturma adımlarını tek transaction içinde yürütür. Müşterinin API üzerinden silinmesi soft-delete olduğu için fiyatlar korunur; yalnızca gelecekte gerçekleşebilecek gerçek ilişkisel hard-delete durumunda foreign key `CASCADE` davranışı uygulanır.
+
 ## Frontend
 
 Teknolojiler:
@@ -98,6 +106,8 @@ Frontend uygulaması aşağıdaki temel katmanları kullanır:
 TanStack Query'nin query ve mutation hataları merkezi Türkçe toast bildirimlerine bağlanır. Render hataları uygulama error boundary'siyle, route hataları router error ekranıyla ele alınır.
 
 Frontend başlangıcında `GET /api/v1/auth/me` ile HttpOnly cookie session'ı doğrulanır. Bu kontrol tamamlanana kadar session skeleton'ı gösterilir. Korumalı route'lar oturumsuz kullanıcıları `/login` sayfasına, aktif oturumu olan `/login` ziyaretçilerini ana uygulamaya yönlendirir. Kullanıcı çıkış yaptığında `POST /api/v1/auth/logout` oturum cookie'sini temizler; frontend session cache'ini sıfırlayıp kullanıcıyı login ekranına taşır.
+
+Müşteri ekranı `src/features/customers` altında API adaptörü, merkezi query key'leri, TanStack Query hook'ları, form dialog'u, detay/fiyat drawer'ı ve route ekranına ayrılır. Arama debounce edilir; liste, detay, çöp kutusu ve fiyat cache'leri mutation sonrasında kapsamlı biçimde invalidate edilir. Müşteri formları React Hook Form ve Zod kullanır; fiyat değerleri hesaplama yapılmadan string olarak API'ye taşınır.
 
 ### Tasarım dili
 

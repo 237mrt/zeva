@@ -113,18 +113,136 @@ Auth response'ları hiçbir koşulda `passwordHash` veya başka hassas kullanıc
 
 ### Customers
 
-- `GET /api/v1/customers`
-- `POST /api/v1/customers`
-- `GET /api/v1/customers/:id`
-- `PATCH /api/v1/customers/:id`
-- `DELETE /api/v1/customers/:id`
-- `GET /api/v1/customers/trash`
-- `POST /api/v1/customers/:id/restore`
+Tüm müşteri endpointleri login sırasında üretilen HttpOnly oturum cookie’sini gerektirir. Oturumsuz istekler `401 UNAUTHORIZED` alır.
+
+#### `GET /api/v1/customers`
+
+Yalnızca `deletedAt = null` olan aktif müşterileri döndürür.
+
+Query parametreleri:
+
+- `q`: opsiyonel, en fazla 191 karakter; `name`, `contactName` ve `phone` alanlarında case-insensitive arama yapar.
+- `page`: opsiyonel, minimum `1`, varsayılan `1`.
+- `pageSize`: opsiyonel, `1-100`, varsayılan `20`.
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "customer-id",
+        "name": "Atlas Tekstil",
+        "contactName": "Ayşe Kaya",
+        "phone": "0555 111 22 33",
+        "address": "Sanayi Mahallesi",
+        "notes": null,
+        "createdAt": "2026-08-11T10:00:00.000Z",
+        "updatedAt": "2026-08-11T10:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 20,
+      "total": 1,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+#### `POST /api/v1/customers`
+
+Request:
+
+```json
+{
+  "name": "Atlas Tekstil",
+  "contactName": "Ayşe Kaya",
+  "phone": "0555 111 22 33",
+  "address": "Sanayi Mahallesi",
+  "notes": "Opsiyonel not"
+}
+```
+
+`name` trim sonrası 2-191 karakter ve zorunludur. `contactName` en fazla 120, `phone` 3-40, `address` 500, `notes` 5000 karakterdir. Opsiyonel alanlar gönderilmeyebilir veya `null` olabilir; boş stringler `null` olarak normalize edilir. Başarılı istek `201` ve `data.customer` içinde oluşturulan kaydı döndürür. Aynı isimli birden fazla müşteri olabilir.
+
+#### `GET /api/v1/customers/:id`
+
+Aktif müşteriyi `data.customer` içinde döndürür. Kayıt yoksa veya soft-delete edilmişse `404 CUSTOMER_NOT_FOUND` döner.
+
+#### `PATCH /api/v1/customers/:id`
+
+`POST /customers` ile aynı alanlarda partial update yapar. En az bir alan gönderilmelidir; boş body `400 VALIDATION_ERROR` döndürür. Soft-delete edilmiş kayıt güncellenemez ve `404 CUSTOMER_NOT_FOUND` alır.
+
+#### `DELETE /api/v1/customers/:id`
+
+Hard delete yapmaz; `deletedAt` alanını UTC zamanı ile doldurur. Başarılı response `{ "success": true, "data": {} }` biçimindedir. Bulunmayan veya zaten silinmiş kayıt `404 CUSTOMER_NOT_FOUND` alır. Silinen müşteri normal liste ve detay akışlarında görünmez.
+
+#### `GET /api/v1/customers/trash`
+
+Yalnızca `deletedAt != null` kayıtları döndürür. `q`, `page` ve `pageSize` parametreleri ile response pagination yapısı aktif listeyle aynıdır.
+
+#### `POST /api/v1/customers/:id/restore`
+
+Soft-delete edilmiş müşterinin `deletedAt` alanını `null` yapar ve `data.customer` içinde aktif kaydı döndürür. Kayıt yoksa `404 CUSTOMER_NOT_FOUND`, müşteri zaten aktifse `409 CUSTOMER_ALREADY_ACTIVE` döner.
+
+Customer hata kodları:
+
+- `VALIDATION_ERROR` (`400`): body, parametre veya query doğrulaması başarısız.
+- `UNAUTHORIZED` (`401`): geçerli HttpOnly oturum cookie’si yok.
+- `CUSTOMER_NOT_FOUND` (`404`): müşteri yok veya endpoint için soft-delete durumunda.
+- `CUSTOMER_ALREADY_ACTIVE` (`409`): aktif müşteriye restore istendi.
 
 ### Customer Prices
 
-- `GET /api/v1/customers/:id/prices`
-- `PUT /api/v1/customers/:id/prices`
+Müşteri fiyat endpointleri de cookie authentication gerektirir. Bulunmayan veya soft-delete edilmiş müşteri için `404 CUSTOMER_NOT_FOUND` döner.
+
+#### `GET /api/v1/customers/:id/prices`
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "prices": [
+      {
+        "type": "IRONING",
+        "unitPrice": "1.25"
+      }
+    ]
+  }
+}
+```
+
+#### `PUT /api/v1/customers/:id/prices`
+
+Request:
+
+```json
+{
+  "prices": [
+    {
+      "type": "IRONING",
+      "unitPrice": "1.25"
+    },
+    {
+      "type": "PACKAGING",
+      "unitPrice": "0.75"
+    }
+  ]
+}
+```
+
+PUT isteğindeki `prices` dizisi müşterinin varsayılan fiyat setinin tamamıdır. İşlem transaction içinde mevcut seti değiştirir; gönderilmeyen eski hizmet türleri kaldırılır. Boş dizi tüm fiyatları kaldırır. Aynı `type` bir payload içinde birden fazla kez gönderilemez.
+
+`unitPrice` JSON number değil decimal string olmalıdır. Negatif değerler, ikiden fazla ondalık basamak ve `DECIMAL(12,2)` sınırını aşan değerler `400 VALIDATION_ERROR` ile reddedilir. API değeri precision kaybetmeden iki ondalık basamaklı canonical string olarak döndürür; örneğin `"2"` girdisi `"2.00"` olur. Finansal hesaplamaların doğruluk kaynağı frontend değildir.
+
+Desteklenen `type` değerleri `WorkOrderType` enum’uyla aynıdır: `IRONING`, `PACKAGING`, `IRONING_PACKAGING`, `PRINTING`, `OTHER`.
 
 ### Work Orders
 
