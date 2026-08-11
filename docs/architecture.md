@@ -58,7 +58,7 @@ Ortak altyapı şu dizinlere ayrılır:
 - `src/shared`: ortak hata ve API response yapıları
 - `src/modules`: domain ve sistem modülleri
 
-Prisma şeması ve migration altyapısı `apps/backend/prisma` altında tutulur. Domain modelleri ilgili feature geliştirmesi sırasında migration ile eklenir.
+Prisma şeması ve migration altyapısı `apps/backend/prisma` altında tutulur. Prisma ORM 7 yapılandırması `apps/backend/prisma.config.ts` dosyasındadır; Rust bağımsız `prisma-client` generator'ı çıktısını `src/generated/prisma` altına üretir ve MySQL bağlantısı `@prisma/adapter-mariadb` ile kurulur. Domain modelleri ilgili feature geliştirmesi sırasında migration ile eklenir.
 
 ## Frontend
 
