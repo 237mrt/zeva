@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Calculator, LoaderCircle, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -108,6 +108,25 @@ export function WorkOrderFormDialog({
   const selectedType = useWatch({ control, name: 'type' });
   const totalQuantity = useWatch({ control, name: 'totalQuantity' });
   const unitPrice = useWatch({ control, name: 'unitPrice' });
+  const previousPricingTarget = useRef({
+    customerId: workOrder?.customerId ?? '',
+    type: workOrder?.type ?? 'IRONING',
+  });
+
+  useEffect(() => {
+    const previousTarget = previousPricingTarget.current;
+    previousPricingTarget.current = { customerId: selectedCustomerId, type: selectedType };
+
+    if (
+      !workOrder ||
+      (previousTarget.customerId === selectedCustomerId && previousTarget.type === selectedType)
+    ) {
+      return;
+    }
+
+    setValue('unitPrice', '', { shouldDirty: true, shouldValidate: true });
+  }, [selectedCustomerId, selectedType, setValue, workOrder]);
+
   const customersQuery = useCustomerList({
     q: debouncedCustomerSearch,
     page: 1,

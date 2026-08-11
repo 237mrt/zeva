@@ -44,9 +44,14 @@ const customer: Customer = {
   updatedAt: '2026-08-02T08:00:00.000Z',
   deletedAt: null,
 };
+const betaCustomer: Customer = {
+  ...customer,
+  id: 'customer-beta',
+  name: 'Beta Tekstil',
+};
 const customerData: CustomerListData = {
-  items: [customer],
-  pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+  items: [customer, betaCustomer],
+  pagination: { page: 1, pageSize: 20, total: 2, totalPages: 1 },
 };
 
 const workOrder: WorkOrder = {
@@ -128,7 +133,14 @@ function configureQueries(activeData: WorkOrderListData = listData, trashData: W
     queryResult(customerData) as unknown as ReturnType<typeof useCustomerList>,
   );
   vi.mocked(useCustomerPrices).mockImplementation((id) =>
-    queryResult(id ? [{ type: 'IRONING', unitPrice: '1.25' }] : []) as unknown as ReturnType<typeof useCustomerPrices>,
+    queryResult(
+      id
+        ? [
+            { type: 'IRONING', unitPrice: id === betaCustomer.id ? '3.00' : '1.25' },
+            { type: 'PRINTING', unitPrice: id === betaCustomer.id ? '4.00' : '2.00' },
+          ]
+        : [],
+    ) as unknown as ReturnType<typeof useCustomerPrices>,
   );
   vi.mocked(useCreateWorkOrder).mockReturnValue(
     { mutateAsync: create, isPending: false } as unknown as ReturnType<typeof useCreateWorkOrder>,
@@ -306,8 +318,43 @@ describe('WorkOrderPage', () => {
     await waitFor(() => expect(update).toHaveBeenCalled());
     expect(update.mock.calls[0]?.[0]).toMatchObject({
       id: workOrder.id,
-      input: { productName: 'Güncel Forma' },
+      input: { productName: 'Güncel Forma', unitPrice: '1.25' },
     });
+  });
+
+  it('edit sırasında hizmet türü değişince eski fiyat snapshotını göndermez', async () => {
+    render(<WorkOrderPage />, { wrapper: Providers });
+    fireEvent.click(screen.getByRole('button', { name: 'Düzenle: Galatasaray Garson' }));
+
+    expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe('1.25');
+    fireEvent.change(screen.getByLabelText('Hizmet türü'), { target: { value: 'PRINTING' } });
+
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe(''));
+    expect(await screen.findByText('Müşteri varsayılanı: 2.00 TL')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Değişiklikleri kaydet' }));
+
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    const input = update.mock.calls[0]?.[0].input;
+    expect(input).toMatchObject({ type: 'PRINTING' });
+    expect(input).not.toHaveProperty('unitPrice');
+  });
+
+  it('edit sırasında müşteri değişince eski fiyat snapshotını göndermez', async () => {
+    render(<WorkOrderPage />, { wrapper: Providers });
+    fireEvent.click(screen.getByRole('button', { name: 'Düzenle: Galatasaray Garson' }));
+
+    fireEvent.change(screen.getByLabelText(/^Müşteri \*/), {
+      target: { value: betaCustomer.id },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe(''));
+    expect(await screen.findByText('Müşteri varsayılanı: 3.00 TL')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Değişiklikleri kaydet' }));
+
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    const input = update.mock.calls[0]?.[0].input;
+    expect(input).toMatchObject({ customerId: betaCustomer.id });
+    expect(input).not.toHaveProperty('unitPrice');
   });
 
   it('durumu tablo üzerinden değiştirir', async () => {
