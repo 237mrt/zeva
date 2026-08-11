@@ -53,6 +53,7 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}${normalizedPath}`, {
       ...options,
       headers,
+      credentials: options.credentials ?? 'include',
     });
 
     let responseBody: unknown;

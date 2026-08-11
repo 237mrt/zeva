@@ -19,6 +19,7 @@
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f mysql",
     "db:migrate": "pnpm --filter @zeva/backend db:migrate",
+    "db:bootstrap-admin": "pnpm --filter @zeva/backend db:bootstrap-admin",
     "postinstall": "pnpm --filter @zeva/backend db:generate"
   }
 }

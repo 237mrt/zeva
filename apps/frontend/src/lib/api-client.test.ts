@@ -51,6 +51,7 @@ describe('ApiClient', () => {
 
     expect(headers.get('Accept')).toBe('application/json');
     expect(headers.has('Content-Type')).toBe(false);
+    expect(requestOptions?.credentials).toBe('include');
   });
 
   it('JSON body bulunan isteğe Content-Type ekler', async () => {

@@ -33,8 +33,83 @@ Tüm endpointler `/api/v1` prefix'i kullanır.
 
 ### Auth
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
+Zeva public bir SaaS değildir. Public register endpointi bulunmaz. İlk yönetici hesabı güvenli bootstrap komutuyla oluşturulur.
+
+#### `POST /api/v1/auth/login`
+
+Request:
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "strong-password"
+}
+```
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user-id",
+      "email": "admin@example.com",
+      "name": "Zeva Yöneticisi",
+      "role": "ADMIN"
+    }
+  }
+}
+```
+
+Başarılı login JWT'yi response body içinde paylaşmaz; yalnızca JavaScript tarafından okunamayan `HttpOnly`, `SameSite=Strict` cookie ile gönderir. Production ortamında cookie `Secure` ve `__Host-` prefix'li olur. Login route'u IP başına dakikada beş istekle sınırlandırılır.
+
+Hata kodları:
+
+- `INVALID_CREDENTIALS` (`401`): email bulunamadığında ve şifre yanlış olduğunda aynı genel mesaj kullanılır.
+- `ACCOUNT_DISABLED` (`403`): doğru bilgilerle giriş yapan kullanıcı aktif değilse döner.
+- `VALIDATION_ERROR` (`400`): request sözleşmesi geçersizse döner.
+- `RATE_LIMIT_EXCEEDED` (`429`): login deneme sınırı aşıldığında döner.
+
+#### `POST /api/v1/auth/logout`
+
+İstek gövdesi gerektirmez. Endpoint idempotent çalışır ve mevcut HttpOnly oturum cookie’sini temizler.
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
+#### `GET /api/v1/auth/me`
+
+Login sırasında üretilen HttpOnly oturum cookie’sini gerektirir.
+
+Başarılı response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user-id",
+      "email": "admin@example.com",
+      "name": "Zeva Yöneticisi",
+      "role": "ADMIN"
+    }
+  }
+}
+```
+
+Hata kodları:
+
+- `UNAUTHORIZED` (`401`): oturum cookie’si yoksa, geçersizse, süresi dolmuşsa veya kullanıcı artık bulunamıyorsa döner.
+- `ACCOUNT_DISABLED` (`403`): oturum sahibi kullanıcı devre dışı bırakılmışsa döner.
+
+Auth response'ları hiçbir koşulda `passwordHash` veya başka hassas kullanıcı alanlarını içermez.
 
 ### Customers
 

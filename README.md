@@ -2,7 +2,7 @@
 
 Müşteri, iş emri, ütü-paket, baskı, teslimat ve ödeme süreçlerini tek yerden yönetmek için geliştirilen modern tekstil atölyesi yönetim sistemi.
 
-Bu branch proje altyapısını içerir. Müşteriler, iş emirleri ve ödemeler gibi gerçek domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
+Proje altyapısına ek olarak yönetici bootstrap mekanizması, güvenli login akışı ve korumalı frontend oturumu bulunur. Müşteriler, iş emirleri ve ödemeler gibi diğer domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
 
 ## Proje yapısı
 
@@ -38,7 +38,7 @@ zeva/
 
 ## Teknolojiler
 
-- Backend: Node.js 24 LTS, TypeScript, Fastify, Prisma, MySQL 8.4, Zod, Vitest, Pino ve OpenAPI.
+- Backend: Node.js 24 LTS, TypeScript, Fastify, Prisma, MySQL 8.4, Zod, Vitest, Pino, OpenAPI, JWT ve Argon2id.
 - Frontend: React, TypeScript, Vite, Tailwind CSS, TanStack Query, React Hook Form ve Zod.
 - Geliştirme ortamı: pnpm workspace, Docker Compose ve GitHub Actions.
 
@@ -58,7 +58,22 @@ cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-`.env` dosyalarındaki `change-me` değerlerini yalnızca yerel geliştirme ortamına uygun değerlerle değiştirin. Gerçek secret bilgilerini repository'ye eklemeyin. Backend `DATABASE_URL` içindeki kullanıcı ve şifre, kök `.env` dosyasındaki MySQL değerleriyle eşleşmelidir.
+`.env` dosyalarındaki örnek değerleri yalnızca yerel geliştirme ortamına uygun değerlerle değiştirin. Gerçek secret bilgilerini repository'ye eklemeyin. Backend `DATABASE_URL` içindeki kullanıcı ve şifre, kök `.env` dosyasındaki MySQL değerleriyle eşleşmelidir.
+
+`JWT_SECRET` en az 32 karakterlik, tahmin edilmesi zor rastgele bir değer olmalıdır. Güvenli bir örnek değer üretmek için:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+```
+
+İlk yönetici hesabı public register endpointi yerine `ZEVA_ADMIN_EMAIL`, `ZEVA_ADMIN_PASSWORD` ve `ZEVA_ADMIN_NAME` değerlerinden oluşturulur. MySQL başladıktan sonra migration ve idempotent bootstrap komutlarını çalıştırın:
+
+```bash
+pnpm db:migrate
+pnpm db:bootstrap-admin
+```
+
+Bootstrap komutu aynı e-posta için tekrar çalıştırıldığında ikinci bir hesap oluşturmaz ve mevcut hesabın şifresini değiştirmez.
 
 MySQL'i ve uygulamaları başlatın:
 
@@ -93,6 +108,7 @@ pnpm db:down
 | `pnpm test` | Backend ve frontend testlerini çalıştırır. |
 | `pnpm build` | Backend ve frontend production build'lerini oluşturur. |
 | `pnpm db:migrate` | Prisma geliştirme migration komutunu çalıştırır. |
+| `pnpm db:bootstrap-admin` | Environment değerlerinden ilk yönetici hesabını idempotent olarak oluşturur. |
 
 ## Geliştirme modeli
 

@@ -1,3 +1,3 @@
 # Prisma migrations
 
-Domain models are intentionally not part of the project setup phase. Create the first migration with `pnpm --filter @zeva/backend db:migrate` when the first domain model is introduced.
+Her şema değişikliği anlamlı isimli bir Prisma migration ile kaydedilir. Migration dosyaları uygulama başlatılmadan önce `pnpm --filter @zeva/backend db:deploy` komutuyla uygulanabilir.

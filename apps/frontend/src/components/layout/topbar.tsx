@@ -1,7 +1,10 @@
-import { Menu, Search } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { LogOut, Menu, Search } from 'lucide-react';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { navigationItems } from '../../app/navigation';
+import { useAuth } from '../../hooks/use-auth';
+import { useToast } from '../../hooks/use-toast';
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -9,9 +12,36 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const currentItem = navigationItems.find((item) =>
     item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path),
   );
+  const initials =
+    user?.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toLocaleUpperCase('tr-TR'))
+      .join('') || 'ZV';
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+      toast.success('Oturum kapatıldı', 'Güvenli şekilde çıkış yaptınız.');
+      void navigate('/login', { replace: true });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Çıkış işlemi tamamlanamadı. Lütfen tekrar deneyin.';
+      toast.error('Çıkış yapılamadı', message);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-20 flex h-18 items-center justify-between border-b border-[var(--zeva-border)] bg-[color:var(--zeva-bg)]/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
@@ -43,15 +73,32 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </kbd>
         </button>
         <div className="h-7 w-px bg-[var(--zeva-border)]" aria-hidden="true" />
+        <div className="flex items-center gap-2 rounded-lg p-1.5 pr-2">
+          <span className="grid size-7 place-items-center rounded-md bg-[#29362d] text-[11px] font-bold text-[#b9d4c1]">
+            {initials}
+          </span>
+          <span className="hidden max-w-40 truncate text-xs font-medium text-[#cbd1cc] sm:block">
+            {user?.name ?? 'Yönetici'}
+          </span>
+        </div>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-lg p-1.5 pr-2 hover:bg-[var(--zeva-surface-hover)]"
-          aria-label="Kullanıcı menüsü"
+          disabled={isLoggingOut}
+          className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border)] px-2.5 text-xs font-medium text-[var(--zeva-text-muted)] hover:border-[#5f3d3d] hover:bg-[#261a1a] hover:text-[#e4a0a0] disabled:cursor-not-allowed disabled:opacity-60"
+          aria-label="Çıkış yap"
+          onClick={() => {
+            void handleLogout();
+          }}
         >
-          <span className="grid size-7 place-items-center rounded-md bg-[#29362d] text-[11px] font-bold text-[#b9d4c1]">
-            ZV
-          </span>
-          <span className="hidden text-xs font-medium text-[#cbd1cc] sm:block">Yönetici</span>
+          {isLoggingOut ? (
+            <span
+              className="size-4 animate-spin rounded-full border-2 border-[#879088] border-t-transparent"
+              aria-hidden="true"
+            />
+          ) : (
+            <LogOut className="size-4" aria-hidden="true" />
+          )}
+          <span className="hidden sm:inline">Çıkış</span>
         </button>
       </div>
     </header>

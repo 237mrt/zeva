@@ -23,12 +23,42 @@ describe('Swagger integration', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('application/json');
-    expect(response.json()).toMatchObject({
+
+    const document = response.json<unknown>();
+    expect(document).toMatchObject({
       openapi: '3.1.0',
       info: {
         title: 'Zeva API',
         version: '0.1.0',
       },
+      paths: {
+        '/api/v1/auth/login': { post: {} },
+        '/api/v1/auth/me': { get: {} },
+      },
+      components: {
+        securitySchemes: {
+          cookieAuth: { type: 'apiKey', in: 'cookie' },
+        },
+      },
     });
+    expect(document).not.toHaveProperty(['components', 'securitySchemes', 'bearerAuth']);
+    expect(document).toHaveProperty(
+      ['paths', '/api/v1/auth/me', 'get', 'security'],
+      [{ cookieAuth: [] }],
+    );
+    expect(document).not.toHaveProperty([
+      'paths',
+      '/api/v1/auth/login',
+      'post',
+      'responses',
+      '200',
+      'content',
+      'application/json',
+      'schema',
+      'properties',
+      'data',
+      'properties',
+      'accessToken',
+    ]);
   });
 });
