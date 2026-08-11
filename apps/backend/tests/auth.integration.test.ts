@@ -23,6 +23,7 @@ interface MeData {
 
 describe('Authentication integration', () => {
   let app: FastifyInstance;
+  let repository: InMemoryAuthRepository;
   let users: AuthUserRecord[];
 
   beforeAll(async () => {
@@ -48,7 +49,7 @@ describe('Authentication integration', () => {
   });
 
   beforeEach(async () => {
-    const repository = new InMemoryAuthRepository(users);
+    repository = new InMemoryAuthRepository(users);
     app = await buildApp({
       logger: false,
       documentation: false,
@@ -147,6 +148,30 @@ describe('Authentication integration', () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json<ErrorResponse>().error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('login sonrası pasifleşen kullanıcıyı mevcut cookie ile reddeder', async () => {
+    const loginResponse = await login();
+    const setCookieHeader = loginResponse.headers['set-cookie'];
+    const cookie = (Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader)?.split(
+      ';',
+    )[0];
+    const sessionUser = await repository.findById('active-admin');
+
+    if (!sessionUser) {
+      throw new Error('Test user not found');
+    }
+
+    sessionUser.isActive = false;
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { cookie: cookie ?? '' },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json<ErrorResponse>().error.code).toBe('ACCOUNT_DISABLED');
   });
 
   it('logout işleminde HttpOnly oturum cookie’sini temizler', async () => {
