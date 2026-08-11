@@ -246,14 +246,71 @@ Desteklenen `type` değerleri `WorkOrderType` enum’uyla aynıdır: `IRONING`, 
 
 ### Work Orders
 
-- `GET /api/v1/work-orders`
-- `POST /api/v1/work-orders`
-- `GET /api/v1/work-orders/:id`
-- `PATCH /api/v1/work-orders/:id`
-- `PATCH /api/v1/work-orders/:id/status`
-- `DELETE /api/v1/work-orders/:id`
-- `GET /api/v1/work-orders/trash`
-- `POST /api/v1/work-orders/:id/restore`
+Tüm Work Order endpointleri HttpOnly oturum cookie'si gerektirir. Oturumsuz istekler `401 UNAUTHORIZED` alır. `unitPrice` ve `totalAmount` JSON number değil, iki ondalık basamaklı canonical decimal string olarak taşınır.
+
+#### GET /api/v1/work-orders
+
+Yalnızca `deletedAt = null` iş emirlerini döndürür.
+
+Query parametreleri:
+
+- `q`: ürün/iş adı veya müşteri adında arama
+- `page`: varsayılan `1`, minimum `1`
+- `pageSize`: varsayılan `20`, `1-100`
+- `customerId`: müşteri filtresi
+- `type`: `WorkOrderType` filtresi
+- `status`: `WorkOrderStatus` filtresi
+
+Liste item'ları iş emri alanlarının yanında N+1 API isteğini önleyen `{ id, name }` biçiminde küçük bir `customer` özeti taşır. `data.pagination` alanı `page`, `pageSize`, `total` ve `totalPages` değerlerini içerir.
+
+#### POST /api/v1/work-orders
+
+```json
+{
+  "customerId": "cm...",
+  "productName": "Galatasaray Garson",
+  "type": "IRONING_PACKAGING",
+  "totalQuantity": 1000,
+  "unitPrice": "1.25",
+  "receivedAt": "2026-08-12T08:00:00.000Z",
+  "dueAt": "2026-08-15T17:00:00.000Z",
+  "notes": "Öncelikli"
+}
+```
+
+Yeni kayıt her zaman `WAITING` durumunda oluşturulur; create body içinde `status` kabul edilmez. `totalQuantity` pozitif integer ve en fazla `1.000.000` olmalıdır. `dueAt`, `receivedAt` değerinden önce olamaz. Boş opsiyonel metinler `null` olarak normalize edilir.
+
+`unitPrice` gönderilmişse doğrulanıp fiyat snapshot'ı olarak kullanılır. Gönderilmemişse aktif müşterinin ilgili `WorkOrderType` için `CustomerPrice` değeri kullanılır. İki kaynakta da fiyat yoksa `422 WORK_ORDER_UNIT_PRICE_REQUIRED` döner. Müşteri fiyatının daha sonra değişmesi geçmiş iş emrini değiştirmez.
+
+Backend `totalAmount = totalQuantity * unitPrice` hesabını Decimal arithmetic ile yapar; istemciden `totalAmount` kabul edilmez. Başarılı cevap oluşturulan iş emrini customer özetiyle döndürür.
+
+#### GET /api/v1/work-orders/:id
+
+Aktif iş emrini customer özetiyle döndürür. Kayıt yoksa veya soft-delete edilmişse `404 WORK_ORDER_NOT_FOUND` döner.
+
+#### PATCH /api/v1/work-orders/:id
+
+`customerId`, `productName`, `type`, `totalQuantity`, `unitPrice`, `receivedAt`, `dueAt` ve `notes` alanlarında partial update yapar. En az bir alan gereklidir. `status` bu endpoint üzerinden değiştirilemez.
+
+Müşteri veya hizmet türü değişirken `unitPrice` açıkça gönderilmezse yeni müşteri/türün varsayılan fiyatı snapshot olarak alınır; bulunamazsa `422 WORK_ORDER_UNIT_PRICE_REQUIRED` döner. Müşteri ve tür değişmiyorsa mevcut fiyat korunur. Her başarılı güncellemede toplam tutar backend tarafından yeniden hesaplanır.
+
+#### PATCH /api/v1/work-orders/:id/status
+
+Request body yalnızca geçerli bir `WorkOrderStatus` içeren `status` alanını kabul eder. Bu temel feature katı bir transition state-machine uygulamaz; aynı durumu tekrar göndermek idempotenttir. Soft-delete edilmiş kayıt `404 WORK_ORDER_NOT_FOUND` alır.
+
+#### DELETE /api/v1/work-orders/:id
+
+Hard delete yapmaz; `deletedAt` alanını doldurur. Silinen kayıt normal liste, detay, update ve status akışlarında görünmez veya değiştirilemez.
+
+#### GET /api/v1/work-orders/trash
+
+Yalnızca `deletedAt != null` kayıtları döndürür. Normal listeyle aynı `q`, pagination ve `customerId`/`type`/`status` filtrelerini destekler.
+
+#### POST /api/v1/work-orders/:id/restore
+
+Silinmiş kaydı aktif hale getirir. Kayıt yoksa `404 WORK_ORDER_NOT_FOUND`, zaten aktifse `409 WORK_ORDER_ALREADY_ACTIVE` döner.
+
+İş emri akışındaki domain hata kodları: `WORK_ORDER_NOT_FOUND`, `WORK_ORDER_ALREADY_ACTIVE`, `WORK_ORDER_UNIT_PRICE_REQUIRED`, `CUSTOMER_NOT_FOUND`, `VALIDATION_ERROR` ve `UNAUTHORIZED`. Prisma/SQL hata ayrıntıları API response'una yansıtılmaz.
 
 ### Packages / Sacks
 
