@@ -1,0 +1,49 @@
+name: Kalite Kontrolleri
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Typecheck, lint, test ve build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repository'yi al
+        uses: actions/checkout@v6
+
+      - name: pnpm kur
+        uses: pnpm/action-setup@v6
+
+      - name: Node.js kur
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Bağımlılıkları kur
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript tiplerini kontrol et
+        run: pnpm typecheck
+
+      - name: Kod kalitesini kontrol et
+        run: pnpm lint
+
+      - name: Testleri çalıştır
+        run: pnpm test
+
+      - name: Uygulamaları derle
+        run: pnpm build

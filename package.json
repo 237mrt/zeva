@@ -3,12 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11"
+  },
   "scripts": {
+    "dev": "pnpm --parallel --stream --filter @zeva/backend --filter @zeva/frontend dev",
     "dev:backend": "pnpm --filter @zeva/backend dev",
     "dev:frontend": "pnpm --filter @zeva/frontend dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter @zeva/backend test && pnpm --filter @zeva/frontend test",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "db:up": "docker compose up -d mysql",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f mysql",
+    "db:migrate": "pnpm --filter @zeva/backend db:migrate",
+    "postinstall": "pnpm --filter @zeva/backend db:generate"
   }
 }

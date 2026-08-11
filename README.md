@@ -1,28 +1,101 @@
 # Zeva
 
-Müşteri, iş emri, ütü-paket, baskı, teslimat ve ödeme süreçlerini tek yerden yönetmek için geliştirilmiş modern bir tekstil atölyesi yönetim sistemi.
+Müşteri, iş emri, ütü-paket, baskı, teslimat ve ödeme süreçlerini tek yerden yönetmek için geliştirilen modern tekstil atölyesi yönetim sistemi.
+
+Bu branch proje altyapısını içerir. Müşteriler, iş emirleri ve ödemeler gibi gerçek domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
 
 ## Proje yapısı
 
-Zeva, frontend ve backend uygulamalarının aynı repository içerisinde tutulduğu bir monorepo olarak geliştirilecektir.
+Zeva, pnpm workspace kullanan bir monorepodur.
 
-- `apps/backend`: Node.js + TypeScript + Fastify + Prisma + MySQL backend
-- `apps/frontend`: React + TypeScript + Vite frontend
-- `docs`: ürün, mimari ve API sözleşmeleri
+```text
+zeva/
+├── .github/workflows/ci.yml
+├── apps/
+│   ├── backend/
+│   │   ├── prisma/
+│   │   ├── src/
+│   │   │   ├── config/
+│   │   │   ├── modules/
+│   │   │   ├── plugins/
+│   │   │   ├── routes/
+│   │   │   └── shared/
+│   │   └── tests/
+│   └── frontend/
+│       └── src/
+│           ├── app/
+│           ├── components/
+│           ├── contexts/
+│           ├── hooks/
+│           ├── layouts/
+│           ├── lib/
+│           └── pages/
+├── docs/
+├── compose.yaml
+├── package.json
+└── pnpm-workspace.yaml
+```
+
+## Teknolojiler
+
+- Backend: Node.js 24 LTS, TypeScript, Fastify, Prisma, MySQL 8.4, Zod, Vitest, Pino ve OpenAPI.
+- Frontend: React, TypeScript, Vite, Tailwind CSS, TanStack Query, React Hook Form ve Zod.
+- Geliştirme ortamı: pnpm workspace, Docker Compose ve GitHub Actions.
+
+## Gereksinimler
+
+- Node.js 24 LTS
+- Corepack veya pnpm 11
+- Docker Desktop ya da Docker Engine + Compose
+
+## Kurulum
+
+```bash
+corepack enable
+pnpm install
+cp .env.example .env
+cp apps/backend/.env.example apps/backend/.env
+cp apps/frontend/.env.example apps/frontend/.env
+```
+
+`.env` dosyalarındaki `change-me` değerlerini yalnızca yerel geliştirme ortamına uygun değerlerle değiştirin. Gerçek secret bilgilerini repository'ye eklemeyin. Backend `DATABASE_URL` içindeki kullanıcı ve şifre, kök `.env` dosyasındaki MySQL değerleriyle eşleşmelidir.
+
+MySQL'i ve uygulamaları başlatın:
+
+```bash
+pnpm db:up
+pnpm dev
+```
+
+Servis adresleri:
+
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:3000/api/v1`
+- Health endpoint: `http://localhost:3000/api/v1/health`
+- Swagger UI: `http://localhost:3000/docs`
+
+MySQL loglarını izlemek ve ortamı durdurmak için:
+
+```bash
+pnpm db:logs
+pnpm db:down
+```
+
+`db:down` kalıcı geliştirme volume'unu silmez.
+
+## Kök komutlar
+
+| Komut | Açıklama |
+| --- | --- |
+| `pnpm dev` | Backend ve frontend geliştirme sunucularını paralel başlatır. |
+| `pnpm typecheck` | Tüm workspace paketlerinde TypeScript kontrolü çalıştırır. |
+| `pnpm lint` | Tüm workspace paketlerinde ESLint çalıştırır. |
+| `pnpm test` | Backend ve frontend testlerini çalıştırır. |
+| `pnpm build` | Backend ve frontend production build'lerini oluşturur. |
+| `pnpm db:migrate` | Prisma geliştirme migration komutunu çalıştırır. |
 
 ## Geliştirme modeli
 
-Projenin tüm geliştirmesi Codex tarafından özellik bazlı feature branch'lerinde yürütülecektir.
+Geliştirme özellik bazlı `feature/` branch'lerinde yürütülür. Her özellik mümkün olduğunca veritabanı, backend, frontend ve testleriyle birlikte tamamlanır. Typecheck, lint, test ve build kontrolleri geçtikten sonra `main` branch'i için Pull Request hazırlanır.
 
-Her özellik mümkün olduğunca veritabanı, backend, frontend ve testleriyle birlikte uçtan uca tamamlanacaktır.
-
-Örnek branch'ler:
-
-- `feature/project-setup`
-- `feature/customers`
-- `feature/work-orders`
-- `feature/accounting`
-
-Tamamlanan özellikler Pull Request üzerinden `main` branch'ine alınacaktır. `main` stabil entegrasyon branch'i olarak korunacaktır.
-
-Commit mesajlarının açıklama kısmı Türkçe yazılır ve Conventional Commits ön ekleri kullanılır.
+Commit mesajlarında Conventional Commits ön eki ve Türkçe açıklama kullanılır.

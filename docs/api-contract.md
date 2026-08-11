@@ -27,6 +27,10 @@ Tüm endpointler `/api/v1` prefix'i kullanır.
 
 ## Temel modüller
 
+### System
+
+- `GET /api/v1/health`
+
 ### Auth
 
 - `POST /api/v1/auth/login`
