@@ -29,6 +29,16 @@ describe('Swagger integration', () => {
         title: 'Zeva API',
         version: '0.1.0',
       },
+      paths: {
+        '/api/v1/auth/login': { post: {} },
+        '/api/v1/auth/me': { get: {} },
+      },
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer' },
+          cookieAuth: { type: 'apiKey', in: 'cookie' },
+        },
+      },
     });
   });
 });
