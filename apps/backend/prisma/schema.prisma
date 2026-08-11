@@ -19,6 +19,15 @@ enum WorkOrderType {
   OTHER
 }
 
+enum WorkOrderStatus {
+  WAITING
+  IN_PROGRESS
+  READY
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+
 model User {
   id           String   @id @default(cuid()) @db.VarChar(30)
   email        String   @unique @db.VarChar(191)
@@ -43,6 +52,7 @@ model Customer {
   updatedAt   DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt   DateTime?       @map("deleted_at") @db.DateTime(3)
   prices      CustomerPrice[]
+  workOrders  WorkOrder[]
 
   @@index([deletedAt])
   @@index([name])
@@ -63,4 +73,29 @@ model CustomerPrice {
   @@unique([customerId, type])
   @@index([customerId])
   @@map("customer_prices")
+}
+
+model WorkOrder {
+  id            String          @id @default(cuid()) @db.VarChar(30)
+  customerId    String          @map("customer_id") @db.VarChar(30)
+  productName   String          @map("product_name") @db.VarChar(191)
+  type          WorkOrderType
+  status        WorkOrderStatus @default(WAITING)
+  totalQuantity Int             @map("total_quantity")
+  unitPrice     Decimal         @map("unit_price") @db.Decimal(12, 2)
+  totalAmount   Decimal         @map("total_amount") @db.Decimal(18, 2)
+  receivedAt    DateTime        @map("received_at") @db.DateTime(3)
+  dueAt         DateTime?       @map("due_at") @db.DateTime(3)
+  notes         String?         @db.Text
+  createdAt     DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt     DateTime?       @map("deleted_at") @db.DateTime(3)
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([status])
+  @@index([type])
+  @@index([deletedAt, receivedAt])
+  @@index([dueAt])
+  @@map("work_orders")
 }
