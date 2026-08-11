@@ -108,6 +108,17 @@ export function CustomerPage() {
   const data = listQuery.data;
   const total = data?.pagination.total ?? 0;
   const isMutating = deleteMutation.isPending || restoreMutation.isPending;
+  const lastPage = Math.max(1, data?.pagination.totalPages ?? 1);
+  const isPageOutOfRange =
+    Boolean(data) && !listQuery.isPlaceholderData && page > lastPage;
+
+  useEffect(() => {
+    if (!data || listQuery.isPlaceholderData || page <= lastPage) return;
+    const timer = window.setTimeout(() => {
+      setPage((currentPage) => (currentPage > lastPage ? lastPage : currentPage));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [data, lastPage, listQuery.isPlaceholderData, page]);
 
   return (
     <div className="space-y-5">
@@ -178,7 +189,7 @@ export function CustomerPage() {
           ) : null}
         </div>
 
-        {listQuery.isPending ? (
+        {listQuery.isPending || isPageOutOfRange ? (
           <CustomerTableSkeleton />
         ) : listQuery.isError ? (
           <div className="p-5">

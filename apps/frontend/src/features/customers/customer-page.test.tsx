@@ -46,6 +46,17 @@ const deletedCustomer: Customer = {
   name: 'Silinmiş Müşteri',
   deletedAt: '2026-08-05T09:00:00.000Z',
 };
+const lastPageCustomer: Customer = {
+  ...customer,
+  id: 'customer-last-page',
+  name: 'Son Sayfa Müşterisi',
+};
+const deletedLastPageCustomer: Customer = {
+  ...lastPageCustomer,
+  id: 'customer-deleted-last-page',
+  name: 'Son Sayfa Silinmiş Müşteri',
+  deletedAt: '2026-08-06T09:00:00.000Z',
+};
 const listData: CustomerListData = {
   items: [customer],
   pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
@@ -82,6 +93,10 @@ function queryResult<T>(data: T | undefined, overrides: Record<string, unknown> 
     refetch: vi.fn(),
     ...overrides,
   };
+}
+
+async function waitForInitialSearchDebounce() {
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 275));
 }
 
 const create = vi.fn();
@@ -242,6 +257,131 @@ describe('CustomerPage', () => {
     expect(await screen.findByText('Silinmiş Müşteri')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Geri yükle: Silinmiş Müşteri' }));
     await waitFor(() => expect(restore).toHaveBeenCalledWith('customer-deleted'));
+  });
+
+  it('silme sonrası azalan aktif liste sayfasını son geçerli sayfaya çeker', async () => {
+    let totalPages = 2;
+    vi.mocked(useCustomerList).mockImplementation((params) => {
+      if (params.deleted) return queryResult(emptyData) as unknown as ReturnType<typeof useCustomerList>;
+      const data =
+        params.page === 1
+          ? {
+              items: [customer],
+              pagination: { page: 1, pageSize: 20, total: totalPages === 2 ? 21 : 20, totalPages },
+            }
+          : {
+              items: totalPages === 2 ? [lastPageCustomer] : [],
+              pagination: { page: 2, pageSize: 20, total: 20, totalPages },
+            };
+      return queryResult(data) as unknown as ReturnType<typeof useCustomerList>;
+    });
+    remove.mockImplementationOnce(() => {
+      totalPages = 1;
+      return Promise.resolve({});
+    });
+
+    const { rerender } = render(<CustomerPage />, { wrapper: Providers });
+    await waitForInitialSearchDebounce();
+    fireEvent.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
+    expect(await screen.findByText('Son Sayfa Müşterisi')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sil: Son Sayfa Müşterisi' }));
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('customer-last-page'));
+    rerender(<CustomerPage />);
+
+    await waitFor(() => {
+      expect(vi.mocked(useCustomerList)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ deleted: false, page: 1 }),
+      );
+    });
+    expect(await screen.findByText('Atlas Tekstil')).toBeTruthy();
+    expect(screen.queryByText('Henüz müşteri yok')).toBeNull();
+  });
+
+  it('restore sonrası azalan trash sayfasını son geçerli sayfaya çeker', async () => {
+    let trashTotalPages = 2;
+    vi.mocked(useCustomerList).mockImplementation((params) => {
+      if (!params.deleted) return queryResult(listData) as unknown as ReturnType<typeof useCustomerList>;
+      const data =
+        params.page === 1
+          ? {
+              items: [deletedCustomer],
+              pagination: {
+                page: 1,
+                pageSize: 20,
+                total: trashTotalPages === 2 ? 21 : 20,
+                totalPages: trashTotalPages,
+              },
+            }
+          : {
+              items: trashTotalPages === 2 ? [deletedLastPageCustomer] : [],
+              pagination: { page: 2, pageSize: 20, total: 20, totalPages: trashTotalPages },
+            };
+      return queryResult(data) as unknown as ReturnType<typeof useCustomerList>;
+    });
+    restore.mockImplementationOnce(() => {
+      trashTotalPages = 1;
+      return Promise.resolve(customer);
+    });
+
+    const { rerender } = render(<CustomerPage />, { wrapper: Providers });
+    await waitForInitialSearchDebounce();
+    fireEvent.click(screen.getByRole('button', { name: 'Çöp kutusu' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sonraki sayfa' }));
+    expect(await screen.findByText('Son Sayfa Silinmiş Müşteri')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Geri yükle: Son Sayfa Silinmiş Müşteri' }),
+    );
+
+    await waitFor(() => expect(restore).toHaveBeenCalledWith('customer-deleted-last-page'));
+    rerender(<CustomerPage />);
+
+    await waitFor(() => {
+      expect(vi.mocked(useCustomerList)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ deleted: true, page: 1 }),
+      );
+    });
+    expect(await screen.findByText('Silinmiş Müşteri')).toBeTruthy();
+    expect(screen.queryByText('Çöp kutusu boş')).toBeNull();
+  });
+
+  it('toplam sayfa sıfıra düştüğünde page değerini bire döndürür', async () => {
+    let hasCustomers = true;
+    vi.mocked(useCustomerList).mockImplementation((params) => {
+      if (params.deleted) return queryResult(emptyData) as unknown as ReturnType<typeof useCustomerList>;
+      if (!hasCustomers) {
+        return queryResult({
+          items: [],
+          pagination: { page: params.page, pageSize: 20, total: 0, totalPages: 0 },
+        }) as unknown as ReturnType<typeof useCustomerList>;
+      }
+      return queryResult(
+        params.page === 1
+          ? {
+              items: [customer],
+              pagination: { page: 1, pageSize: 20, total: 21, totalPages: 2 },
+            }
+          : {
+              items: [lastPageCustomer],
+              pagination: { page: 2, pageSize: 20, total: 21, totalPages: 2 },
+            },
+      ) as unknown as ReturnType<typeof useCustomerList>;
+    });
+
+    const { rerender } = render(<CustomerPage />, { wrapper: Providers });
+    await waitForInitialSearchDebounce();
+    fireEvent.click(screen.getByRole('button', { name: 'Sonraki sayfa' }));
+    expect(await screen.findByText('Son Sayfa Müşterisi')).toBeTruthy();
+
+    hasCustomers = false;
+    rerender(<CustomerPage />);
+
+    await waitFor(() => {
+      expect(vi.mocked(useCustomerList)).toHaveBeenLastCalledWith(
+        expect.objectContaining({ deleted: false, page: 1 }),
+      );
+    });
+    expect(await screen.findByText('Henüz müşteri yok')).toBeTruthy();
   });
 
   it('customer price formunu string değerlerle kaydeder', async () => {
