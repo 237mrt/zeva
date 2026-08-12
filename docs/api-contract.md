@@ -314,20 +314,119 @@ Silinmiş kaydı aktif hale getirir. Kayıt yoksa `404 WORK_ORDER_NOT_FOUND`, za
 
 ### Packages / Sacks
 
-Çuval ve koli kayıtları bir iş emrine bağlıdır.
+Tüm paket endpointleri HttpOnly oturum cookie'si gerektirir. `PackageType` değerleri `SACK` (Çuval) ve `BOX` (Koli) olarak tanımlıdır. Paketler iş emri içinde artan `sequenceNo` alır; soft-delete edilen sıra numaraları yeniden kullanılmaz.
 
-- `GET /api/v1/work-orders/:id/packages`
-- `POST /api/v1/work-orders/:id/packages`
-- `PATCH /api/v1/work-orders/:workOrderId/packages/:packageId`
-- `DELETE /api/v1/work-orders/:workOrderId/packages/:packageId`
+#### `GET /api/v1/work-orders/:id/packages`
 
-Çuval/koli adetlerinin toplamı iş emrinin toplam adedi ile karşılaştırılmalıdır.
+Aktif iş emrinin soft-delete edilmemiş paketlerini sıra numarasıyla listeler. Response `workOrder`, `packages` ve aşağıdaki özeti taşır:
+
+```json
+{
+  "success": true,
+  "data": {
+    "workOrder": {
+      "id": "work-order-id",
+      "productName": "Galatasaray Garson",
+      "status": "READY",
+      "totalQuantity": 1000,
+      "customer": { "id": "customer-id", "name": "Alpha Tekstil" }
+    },
+    "packages": [
+      {
+        "id": "package-id",
+        "workOrderId": "work-order-id",
+        "sequenceNo": 1,
+        "type": "SACK",
+        "quantity": 250,
+        "deliveryId": null,
+        "delivery": null,
+        "notes": null,
+        "createdAt": "2026-08-12T09:00:00.000Z",
+        "updatedAt": "2026-08-12T09:00:00.000Z",
+        "deletedAt": null
+      }
+    ],
+    "summary": {
+      "workOrderTotalQuantity": 1000,
+      "packagedQuantity": 750,
+      "remainingQuantity": 250,
+      "deliveredQuantity": 500,
+      "packageCount": 3,
+      "deliveredPackageCount": 2
+    }
+  }
+}
+```
+
+Bulunmayan veya soft-delete edilmiş iş emri `404 WORK_ORDER_NOT_FOUND` alır.
+
+#### `POST /api/v1/work-orders/:id/packages`
+
+Paketleri tek transaction içinde toplu oluşturur:
+
+```json
+{
+  "packages": [
+    { "type": "SACK", "quantity": 250 },
+    { "type": "BOX", "quantity": 200, "notes": "Mavi koli" }
+  ]
+}
+```
+
+Liste `1-100` paket içermeli; `quantity` pozitif integer ve en fazla `1.000.000`, `notes` en fazla `2.000` karakter olmalıdır. Batch içindeki tek bir hata bütün işlemi başarısız kılar. Aktif paket toplamı `WorkOrder.totalQuantity` değerini aşarsa `422 PACKAGE_QUANTITY_EXCEEDS_WORK_ORDER` döner. Başarılı istek `201` ile güncel paket listesi ve özeti döndürür.
+
+#### `PATCH /api/v1/work-order-packages/:packageId`
+
+Teslim edilmemiş aktif paketin `type`, `quantity` ve `notes` alanlarında partial update yapar. En az bir alan gerekir. Yeni paket toplamı iş emri adedini aşamaz. Teslim edilmiş paket `409 PACKAGE_ALREADY_DELIVERED`, bulunamayan/soft-delete paket `404 PACKAGE_NOT_FOUND` alır.
+
+#### `DELETE /api/v1/work-order-packages/:packageId`
+
+Teslim edilmemiş paketi `deletedAt` ile soft-delete eder. Kayıt liste ve paket toplamlarından çıkar. Teslim edilmiş paket silinemez ve `409 PACKAGE_ALREADY_DELIVERED` döner.
+
+Aktif paket toplamı bulunan bir iş emrinde `PATCH /work-orders/:id` ile `totalQuantity` bu toplamın altına indirilemez; `422 WORK_ORDER_QUANTITY_BELOW_PACKAGED` döner.
 
 ### Deliveries
 
-- `GET /api/v1/deliveries`
-- `POST /api/v1/work-orders/:id/deliveries`
-- `GET /api/v1/work-orders/:id/deliveries`
+Teslimatlar belirli paketlere bağlıdır; yalnız adet toplamı kaydedilmez. Tüm endpointler HttpOnly oturum cookie'si gerektirir.
+
+#### `GET /api/v1/deliveries`
+
+Query parametreleri:
+
+- `q`: iş/ürün adı, müşteri adı veya teslim alan kişide arama
+- `page`: minimum `1`, varsayılan `1`
+- `pageSize`: `1-100`, varsayılan `20`
+- `customerId`: opsiyonel müşteri filtresi
+- `workOrderId`: opsiyonel iş emri filtresi
+- `deliveredFrom`, `deliveredTo`: opsiyonel ISO datetime aralığı
+
+Response `items` ve standart `pagination` alanlarını taşır. Liste item'ında `{ id, name }` müşteri özeti, `{ id, productName }` iş emri özeti, `packageCount`, backend hesaplı `totalQuantity`, teslim bilgileri ve iptal zamanı bulunur. İptal edilen kayıtlar audit amacıyla listede kalır.
+
+#### `POST /api/v1/deliveries`
+
+```json
+{
+  "workOrderId": "work-order-id",
+  "packageIds": ["package-1", "package-2"],
+  "deliveredAt": "2026-08-12T10:30:00.000Z",
+  "receiverName": "Ahmet Yılmaz",
+  "notes": "Müşteri teslim aldı."
+}
+```
+
+`packageIds` boş olamaz ve aynı id tekrarlanamaz. İş emri aktif ve `READY` (kısmi teslimattan sonra gerektiğinde `DELIVERED`) durumda olmalıdır. Seçilen paketlerin tamamı aynı iş emrine ait, aktif ve teslim edilmemiş olmalıdır. Backend paket adetlerini toplar; request'ten teslimat toplamı kabul edilmez. Paket claim işlemi transaction içinde `deliveryId = null` koşuluyla atomik yapılır.
+
+Kısmi teslimatta iş emri `READY` kalır. Aktif teslim edilmiş paket toplamı iş emri toplam adedine ulaştığında yalnız `READY` durumundaki iş emri otomatik `DELIVERED` olur. Başarılı response `201` ve `data.delivery` içinde müşteri/iş emri özetiyle paket listesini döndürür.
+
+#### `GET /api/v1/deliveries/:id`
+
+Teslimatın müşteri, iş emri, toplam adet, teslim alan, not, iptal bilgisi ve teslim anındaki paket listesini döndürür. Bulunamayan kayıt `404 DELIVERY_NOT_FOUND` alır.
+
+#### `POST /api/v1/deliveries/:id/cancel`
+
+Teslimatı hard-delete etmez; `cancelledAt` alanını doldurur ve ilgili paketlerin aktif `deliveryId` kilidini transaction içinde kaldırır. Paketler yeniden teslim edilebilir. Teslim anındaki paket kalemleri audit kaydı olarak korunur. İş emri yalnız mevcut durumu `DELIVERED` ise ve iptal sonrası teslim edilen toplam eksikse `READY` durumuna döner; `CLOSED` iş emri otomatik açılmaz. İkinci iptal `409 DELIVERY_ALREADY_CANCELLED`, bulunamayan kayıt `404 DELIVERY_NOT_FOUND` döner.
+
+Delivery hata kodları: `WORK_ORDER_NOT_FOUND`, `WORK_ORDER_NOT_READY_FOR_DELIVERY`, `DELIVERY_PACKAGE_NOT_AVAILABLE`, `PACKAGE_ALREADY_DELIVERED`, `DELIVERY_NOT_FOUND`, `DELIVERY_ALREADY_CANCELLED`, `VALIDATION_ERROR` ve `UNAUTHORIZED`.
 
 ### Payments
 
