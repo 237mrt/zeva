@@ -32,8 +32,8 @@ const router = createBrowserRouter([
             index: true,
             element: (
               <ModulePlaceholderPage
-                eyebrow="Genel bakış"
-                title="Dashboard"
+                eyebrow="Atölye"
+                title="Genel Bakış"
                 description="Atölyenin günlük iş akışı, üretim durumu ve finansal özeti bu alanda yer alacak."
               />
             ),
@@ -47,7 +47,7 @@ const router = createBrowserRouter([
             element: (
               <ModulePlaceholderPage
                 eyebrow="Üretim"
-                title="Ütü / Paket"
+                title="Ütü ve Paketleme"
                 description="Ütü, paketleme, çuval ve koli hareketleri için çalışma alanı hazırlanacak."
               />
             ),

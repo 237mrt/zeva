@@ -129,7 +129,7 @@ export function CustomerPage() {
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#eef2ef]">Müşteriler</h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--zeva-text-muted)]">
-            İletişim bilgilerini, kayıt yaşam döngüsünü ve müşteri özel hizmet fiyatlarını yönetin.
+            Müşteri bilgilerini ve müşteriye özel hizmet fiyatlarını yönetin.
           </p>
         </div>
         {!showTrash ? (
@@ -195,7 +195,7 @@ export function CustomerPage() {
           <div className="p-5">
             <EmptyState
               title="Müşteriler yüklenemedi"
-              description="API bağlantısını kontrol edip tekrar deneyin."
+              description="Veriler yüklenemedi. Lütfen tekrar deneyin."
               icon={RefreshCw}
               action={
                 <button type="button" onClick={() => void listQuery.refetch()} className="rounded-lg bg-[var(--zeva-accent)] px-4 py-2 text-sm font-semibold text-[#0d140f]">
@@ -275,26 +275,26 @@ interface CustomerTableProps {
 
 function CustomerTable({ items, deleted, disabled, onDetail, onEdit, onDelete, onRestore }: CustomerTableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[780px] text-left">
-        <thead className="bg-[#111512] text-[11px] font-semibold uppercase tracking-[0.11em] text-[#778078]">
+    <div>
+      <table className="w-full text-left">
+        <thead className="hidden bg-[#111512] text-[11px] font-semibold uppercase tracking-[0.11em] text-[#778078] lg:table-header-group">
           <tr><th className="px-4 py-3">Müşteri adı</th><th className="px-4 py-3">Yetkili</th><th className="px-4 py-3">Telefon</th><th className="px-4 py-3">Güncellenme</th><th className="px-4 py-3 text-right">İşlemler</th></tr>
         </thead>
-        <tbody className="divide-y divide-[var(--zeva-border)]">
+        <tbody className="grid gap-3 p-3 lg:table-row-group lg:divide-y lg:divide-[var(--zeva-border)] lg:p-0">
           {items.map((customer) => (
-            <tr key={customer.id} className="transition-colors duration-150 hover:bg-[var(--zeva-surface-hover)]">
-              <td className="px-4 py-3.5"><p className="font-medium text-[#e1e7e2]">{customer.name}</p><p className="mt-0.5 text-xs text-[#747d75]">{deleted ? `Silinme: ${formatDate(customer.deletedAt ?? customer.updatedAt)}` : customer.address || 'Adres bilgisi yok'}</p></td>
-              <td className="px-4 py-3.5 text-sm text-[#c5ccc6]">{customer.contactName || '—'}</td>
-              <td className="px-4 py-3.5 text-sm text-[#c5ccc6]">{customer.phone || '—'}</td>
-              <td className="px-4 py-3.5 text-sm text-[#9da69f]">{formatDate(customer.updatedAt)}</td>
-              <td className="px-4 py-3.5"><div className="flex justify-end gap-1.5">
+            <tr key={customer.id} aria-label={`Müşteri: ${customer.name}`} className="grid grid-cols-2 gap-x-3 gap-y-4 rounded-xl border border-[var(--zeva-border)] bg-[#121613] p-4 transition-colors duration-150 hover:bg-[var(--zeva-surface-hover)] lg:table-row lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
+              <td className="col-span-2 lg:table-cell lg:px-4 lg:py-3.5"><p className="font-semibold text-[#e1e7e2] lg:font-medium">{customer.name}</p><p className="mt-1 truncate text-xs text-[#747d75] lg:mt-0.5">{deleted ? `Silinme: ${formatDate(customer.deletedAt ?? customer.updatedAt)}` : customer.address || 'Adres bilgisi yok'}</p></td>
+              <td className="text-sm text-[#c5ccc6] lg:table-cell lg:px-4 lg:py-3.5"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#687169] lg:hidden">Yetkili</span>{customer.contactName || '—'}</td>
+              <td className="text-right text-sm text-[#c5ccc6] lg:table-cell lg:px-4 lg:py-3.5 lg:text-left"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#687169] lg:hidden">Telefon</span>{customer.phone || '—'}</td>
+              <td className="col-span-2 border-t border-[var(--zeva-border)] pt-3 text-xs text-[#9da69f] lg:table-cell lg:border-0 lg:px-4 lg:py-3.5 lg:text-sm"><span className="mr-2 font-medium text-[#737d75] lg:hidden">Son güncelleme</span>{formatDate(customer.updatedAt)}</td>
+              <td className="col-span-2 lg:table-cell lg:px-4 lg:py-3.5"><div className="flex justify-end gap-2 lg:gap-1.5">
                 {deleted ? (
-                  <button type="button" disabled={disabled} onClick={() => onRestore(customer)} aria-label={`Geri yükle: ${customer.name}`} className="flex h-8 items-center gap-1.5 rounded-lg border border-[#354c3d] px-2.5 text-xs font-medium text-[var(--zeva-accent-strong)] hover:bg-[#1d2921] disabled:opacity-50"><ArchiveRestore className="size-3.5" aria-hidden="true" /> Geri yükle</button>
+                  <button type="button" disabled={disabled} onClick={() => onRestore(customer)} aria-label={`Geri yükle: ${customer.name}`} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-[#354c3d] px-3 text-xs font-medium text-[var(--zeva-accent-strong)] hover:bg-[#1d2921] disabled:opacity-50 lg:min-h-8"><ArchiveRestore className="size-3.5" aria-hidden="true" /> Geri yükle</button>
                 ) : (
                   <>
-                    <button type="button" onClick={() => onDetail(customer.id)} aria-label={`Detayı görüntüle: ${customer.name}`} className="grid size-8 place-items-center rounded-lg text-[#9ba49c] hover:bg-[#222923] hover:text-[#dbe1dc]"><Eye className="size-4" aria-hidden="true" /></button>
-                    <button type="button" onClick={() => onEdit(customer)} aria-label={`Düzenle: ${customer.name}`} className="grid size-8 place-items-center rounded-lg text-[#9ba49c] hover:bg-[#222923] hover:text-[#dbe1dc]"><Pencil className="size-4" aria-hidden="true" /></button>
-                    <button type="button" disabled={disabled} onClick={() => onDelete(customer)} aria-label={`Sil: ${customer.name}`} className="grid size-8 place-items-center rounded-lg text-[#b78686] hover:bg-[#2a1d1d] hover:text-[#e0a0a0] disabled:opacity-50"><Trash2 className="size-4" aria-hidden="true" /></button>
+                    <button type="button" onClick={() => onDetail(customer.id)} aria-label={`Detayı görüntüle: ${customer.name}`} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-[var(--zeva-border)] px-3 text-xs text-[#b9c1ba] hover:bg-[#222923] lg:grid lg:size-8 lg:min-h-0 lg:place-items-center lg:border-0 lg:p-0"><Eye className="size-4" aria-hidden="true" /><span className="lg:hidden">Detay</span></button>
+                    <button type="button" onClick={() => onEdit(customer)} aria-label={`Düzenle: ${customer.name}`} className="flex min-h-10 items-center gap-1.5 rounded-lg border border-[var(--zeva-border)] px-3 text-xs text-[#b9c1ba] hover:bg-[#222923] lg:grid lg:size-8 lg:min-h-0 lg:place-items-center lg:border-0 lg:p-0"><Pencil className="size-4" aria-hidden="true" /><span className="lg:hidden">Düzenle</span></button>
+                    <button type="button" disabled={disabled} onClick={() => onDelete(customer)} aria-label={`Sil: ${customer.name}`} className="grid size-10 place-items-center rounded-lg border border-[#4a3030] text-[#c98f8f] hover:bg-[#2a1d1d] disabled:opacity-50 lg:size-8 lg:border-0"><Trash2 className="size-4" aria-hidden="true" /></button>
                   </>
                 )}
               </div></td>

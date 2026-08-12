@@ -17,9 +17,9 @@ export interface NavigationItem {
 }
 
 export const navigationItems: NavigationItem[] = [
-  { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'İşler', path: '/isler', icon: ClipboardList },
-  { label: 'Ütü / Paket', path: '/utu-paket', icon: PackageCheck },
+  { label: 'Genel Bakış', path: '/', icon: LayoutDashboard },
+  { label: 'İş Emirleri', path: '/isler', icon: ClipboardList },
+  { label: 'Ütü ve Paketleme', path: '/utu-paket', icon: PackageCheck },
   { label: 'Baskı', path: '/baski', icon: Printer },
   { label: 'Müşteriler', path: '/musteriler', icon: Users },
   { label: 'Muhasebe', path: '/muhasebe', icon: WalletCards },

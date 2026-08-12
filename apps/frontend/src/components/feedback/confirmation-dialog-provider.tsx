@@ -54,20 +54,8 @@ export function ConfirmationDialogProvider({ children }: PropsWithChildren) {
   );
 
   useEffect(() => {
-    if (!dialog) {
-      return undefined;
-    }
-
-    cancelButton.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        complete(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [complete, dialog]);
+    if (dialog) cancelButton.current?.focus();
+  }, [dialog]);
 
   useEffect(
     () => () => {
@@ -102,6 +90,10 @@ export function ConfirmationDialogProvider({ children }: PropsWithChildren) {
             aria-modal="true"
             aria-labelledby="confirmation-title"
             aria-describedby="confirmation-description"
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') complete(false);
+            }}
             className={`w-full max-w-md rounded-xl border border-[var(--zeva-border-strong)] bg-[#171b18] p-5 shadow-2xl shadow-black/50 transition duration-200 ${
               dialog.isClosing
                 ? 'scale-[0.98] opacity-0'

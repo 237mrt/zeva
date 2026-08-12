@@ -21,7 +21,7 @@ export function ModulePlaceholderPage({ eyebrow, title, description }: ModulePla
         </div>
         <div className="flex shrink-0 items-center gap-2 text-xs text-[#9fa8a1]">
           <CheckCircle2 className="size-4 text-[var(--zeva-accent)]" aria-hidden="true" />
-          Uygulama kabuğu hazır
+          Bu bölüm hazırlanıyor
         </div>
       </div>
 
@@ -30,29 +30,29 @@ export function ModulePlaceholderPage({ eyebrow, title, description }: ModulePla
           <div className="flex size-10 items-center justify-center rounded-lg border border-[#35433a] bg-[#1b241e] text-[var(--zeva-accent-strong)]">
             <Blocks className="size-5" aria-hidden="true" />
           </div>
-          <h2 className="mt-5 text-base font-semibold">Modül altyapısı hazır</h2>
+          <h2 className="mt-5 text-base font-semibold">Çalışma alanı yakında kullanıma açılacak</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-[var(--zeva-text-muted)]">
-            Bu aşamada yalnızca navigasyon ve uygulama yerleşimi oluşturuldu. Gerçek veriler, tablolar ve işlem formları ilgili feature branch'lerinde eklenecek.
+            Bu bölümün işlem ekranları hazırlanıyor. Kullanıma açıldığında günlük kayıtlarınızı ve ilgili işlemleri buradan yönetebileceksiniz.
           </p>
           <div className="mt-6 flex items-center gap-2 text-xs font-medium text-[#8e9790]">
-            Sonraki geliştirme aşaması
+            Planlanan çalışma
             <ArrowRight className="size-4" aria-hidden="true" />
           </div>
         </div>
 
         <aside className="rounded-xl border border-[var(--zeva-border)] bg-[var(--zeva-surface)] p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8f9891]">Sistem durumu</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8f9891]">Hazırlık durumu</p>
           <dl className="mt-4 space-y-4">
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-sm text-[var(--zeva-text-muted)]">Navigasyon</dt>
+              <dt className="text-sm text-[var(--zeva-text-muted)]">Menü erişimi</dt>
               <dd className="text-xs font-medium text-[#b9d4c1]">Hazır</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-sm text-[var(--zeva-text-muted)]">API bağlantısı</dt>
+              <dt className="text-sm text-[var(--zeva-text-muted)]">Sistem bağlantısı</dt>
               <dd className="text-xs font-medium text-[#b9d4c1]">Yapılandırıldı</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-sm text-[var(--zeva-text-muted)]">Domain verileri</dt>
+              <dt className="text-sm text-[var(--zeva-text-muted)]">İşlem ekranları</dt>
               <dd className="text-xs font-medium text-[var(--zeva-warning)]">Bekliyor</dd>
             </div>
           </dl>
