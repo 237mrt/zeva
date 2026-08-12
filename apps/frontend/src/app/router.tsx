@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { AppLoading } from '../components/feedback/app-loading';
 import { CustomerPage } from '../features/customers/customer-page';
 import { WorkOrderPage } from '../features/work-orders/work-order-page';
+import { OperationPage } from '../features/operations/operation-page';
 import { GuestRoute, ProtectedRoute } from '../components/auth/auth-routes';
 import { AppLayout } from '../layouts/app-layout';
 import { GlobalErrorPage } from '../pages/global-error-page';
@@ -44,13 +45,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'utu-paket',
-            element: (
-              <ModulePlaceholderPage
-                eyebrow="Üretim"
-                title="Ütü ve Paketleme"
-                description="Ütü, paketleme, çuval ve koli hareketleri için çalışma alanı hazırlanacak."
-              />
-            ),
+            element: <OperationPage />,
           },
           {
             path: 'baski',

@@ -1,6 +1,7 @@
 import { Pencil, X } from 'lucide-react';
 
 import { Skeleton } from '../../components/feedback/skeleton';
+import { usePackageList } from '../operations/operation.queries';
 import { workOrderTypeLabels } from '../customers/customer.types';
 import { useWorkOrderDetail } from './work-order.queries';
 import { WorkOrderStatusBadge } from './work-order-status-badge';
@@ -42,6 +43,7 @@ export function WorkOrderDetailDialog({
 }: WorkOrderDetailDialogProps) {
   const detailQuery = useWorkOrderDetail(workOrderId);
   const workOrder = detailQuery.data;
+  const packageQuery = usePackageList(workOrderId);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="presentation">
@@ -103,6 +105,15 @@ export function WorkOrderDetailDialog({
                 <Detail label="Oluşturulma" value={formatDate(workOrder.createdAt)} />
                 <Detail label="Son güncelleme" value={formatDate(workOrder.updatedAt)} />
               </dl>
+              <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#737c75]">Paketleme</p>
+                {packageQuery.isPending ? <Skeleton className="mt-3 h-14" /> : packageQuery.data ? (
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div><p className="font-semibold text-[#e4e9e5]">{packageQuery.data.summary.packageCount} paket</p><p className="mt-1 text-sm text-[var(--zeva-text-muted)]">{packageQuery.data.summary.packagedQuantity.toLocaleString('tr-TR')} / {packageQuery.data.summary.workOrderTotalQuantity.toLocaleString('tr-TR')} adet paketlendi · {packageQuery.data.summary.deliveredQuantity.toLocaleString('tr-TR')} adet teslim edildi</p></div>
+                    <a href={`/utu-paket?workOrderId=${workOrderId}`} className="text-sm font-semibold text-[var(--zeva-accent-strong)] hover:text-white">Ütü ve Paketleme bölümünde görüntüle</a>
+                  </div>
+                ) : <p className="mt-2 text-sm text-[var(--zeva-text-muted)]">Paketleme bilgisi yüklenemedi.</p>}
+              </section>
             </>
           )}
         </div>
