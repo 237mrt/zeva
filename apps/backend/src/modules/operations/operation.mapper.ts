@@ -21,6 +21,7 @@ export function toDeliveryResponse(value: DeliveryRecord): DeliveryResponse {
   return {
     ...value,
     packageCount: value.packages.length,
+    workOrderCount: new Set(value.packages.map((item) => item.workOrderId)).size,
     deliveredAt: value.deliveredAt.toISOString(),
     cancelledAt: value.cancelledAt?.toISOString() ?? null,
     createdAt: value.createdAt.toISOString(),

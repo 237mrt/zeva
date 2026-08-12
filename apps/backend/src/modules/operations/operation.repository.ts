@@ -4,6 +4,7 @@ import type {
   CreateDeliveryInput,
   DeliveryCancelResult,
   DeliveryCreateResult,
+  DeliverablePackagesLookupResult,
   DeliveryListQuery,
   DeliveryListResult,
   DeliveryRecord,
@@ -21,6 +22,7 @@ export interface OperationRepository {
   createPackages(workOrderId: string, packages: PackageWriteInput[]): Promise<PackageCreateResult>;
   updatePackage(packageId: string, input: PackageUpdateInput): Promise<PackageUpdateResult>;
   deletePackage(packageId: string): Promise<PackageDeleteResult>;
+  listDeliverablePackages(customerId: string): Promise<DeliverablePackagesLookupResult>;
   listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult>;
   findDelivery(id: string): Promise<DeliveryRecord | null>;
   createDelivery(input: CreateDeliveryInput): Promise<DeliveryCreateResult>;
@@ -45,7 +47,7 @@ const packageSelection = {
 
 const deliverySelection = {
   id: true,
-  workOrderId: true,
+  customerId: true,
   totalQuantity: true,
   deliveredAt: true,
   receiverName: true,
@@ -53,16 +55,12 @@ const deliverySelection = {
   cancelledAt: true,
   createdAt: true,
   updatedAt: true,
-  workOrder: {
-    select: {
-      id: true,
-      productName: true,
-      customer: { select: { id: true, name: true } },
-    },
-  },
+  customer: { select: { id: true, name: true } },
   packageItems: {
     select: {
       workOrderPackageId: true,
+      workOrderId: true,
+      workOrderProductName: true,
       sequenceNo: true,
       type: true,
       quantity: true,
@@ -81,9 +79,7 @@ function mapPackage(value: PackageRow): WorkOrderPackageRecord {
 function mapDelivery(value: DeliveryRow): DeliveryRecord {
   return {
     id: value.id,
-    workOrderId: value.workOrderId,
-    workOrder: { id: value.workOrder.id, productName: value.workOrder.productName },
-    customer: value.workOrder.customer,
+    customer: value.customer,
     totalQuantity: value.totalQuantity,
     deliveredAt: value.deliveredAt,
     receiverName: value.receiverName,
@@ -93,11 +89,48 @@ function mapDelivery(value: DeliveryRow): DeliveryRecord {
     updatedAt: value.updatedAt,
     packages: value.packageItems.map((item) => ({
       id: item.workOrderPackageId,
+      workOrderId: item.workOrderId,
+      workOrder: { id: item.workOrderId, productName: item.workOrderProductName },
       sequenceNo: item.sequenceNo,
       type: item.type,
       quantity: item.quantity,
     })),
   };
+}
+
+async function recalculateWorkOrders(
+  transaction: Prisma.TransactionClient,
+  workOrderIds: string[],
+  direction: 'delivery' | 'cancellation',
+): Promise<void> {
+  for (const workOrderId of [...new Set(workOrderIds)]) {
+    const [workOrder, delivered] = await Promise.all([
+      transaction.workOrder.findUnique({
+        where: { id: workOrderId },
+        select: { status: true, totalQuantity: true },
+      }),
+      transaction.workOrderPackage.aggregate({
+        where: { workOrderId, deletedAt: null, deliveryId: { not: null } },
+        _sum: { quantity: true },
+      }),
+    ]);
+    if (!workOrder) continue;
+    const deliveredQuantity = delivered._sum.quantity ?? 0;
+    if (
+      direction === 'delivery' &&
+      workOrder.status === 'READY' &&
+      deliveredQuantity >= workOrder.totalQuantity
+    ) {
+      await transaction.workOrder.update({ where: { id: workOrderId }, data: { status: 'DELIVERED' } });
+    }
+    if (
+      direction === 'cancellation' &&
+      workOrder.status === 'DELIVERED' &&
+      deliveredQuantity < workOrder.totalQuantity
+    ) {
+      await transaction.workOrder.update({ where: { id: workOrderId }, data: { status: 'READY' } });
+    }
+  }
 }
 
 async function packageList(
@@ -229,10 +262,62 @@ export class PrismaOperationRepository implements OperationRepository {
     });
   }
 
+  public listDeliverablePackages(customerId: string): Promise<DeliverablePackagesLookupResult> {
+    return prisma.$transaction(async (transaction) => {
+      const customer = await transaction.customer.findFirst({
+        where: { id: customerId, deletedAt: null },
+        select: { id: true, name: true },
+      });
+      if (!customer) return { kind: 'customer_not_found' };
+      const rows = await transaction.workOrderPackage.findMany({
+        where: {
+          deletedAt: null,
+          deliveryId: null,
+          workOrder: {
+            customerId,
+            deletedAt: null,
+            status: { in: ['READY', 'DELIVERED'] },
+          },
+        },
+        select: {
+          ...packageSelection,
+          workOrder: {
+            select: {
+              id: true,
+              productName: true,
+              status: true,
+              totalQuantity: true,
+              customer: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: [{ workOrder: { productName: 'asc' } }, { sequenceNo: 'asc' }],
+      });
+      const groups = new Map<string, { workOrder: (typeof rows)[number]['workOrder']; packages: WorkOrderPackageRecord[] }>();
+      for (const row of rows) {
+        const group = groups.get(row.workOrderId) ?? { workOrder: row.workOrder, packages: [] };
+        group.packages.push(mapPackage(row));
+        groups.set(row.workOrderId, group);
+      }
+      return {
+        kind: 'found',
+        value: {
+          customer,
+          workOrders: [...groups.values()],
+          summary: {
+            workOrderCount: groups.size,
+            packageCount: rows.length,
+            totalQuantity: rows.reduce((sum, row) => sum + row.quantity, 0),
+          },
+        },
+      };
+    });
+  }
+
   public async listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult> {
     const where: Prisma.DeliveryWhereInput = {
-      ...(query.customerId ? { workOrder: { customerId: query.customerId } } : {}),
-      ...(query.workOrderId ? { workOrderId: query.workOrderId } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.workOrderId ? { packageItems: { some: { workOrderId: query.workOrderId } } } : {}),
       ...(query.deliveredFrom || query.deliveredTo
         ? {
             deliveredAt: {
@@ -245,8 +330,8 @@ export class PrismaOperationRepository implements OperationRepository {
         ? {
             OR: [
               { receiverName: { contains: query.q } },
-              { workOrder: { productName: { contains: query.q } } },
-              { workOrder: { customer: { name: { contains: query.q } } } },
+              { customer: { name: { contains: query.q } } },
+              { packageItems: { some: { workOrderProductName: { contains: query.q } } } },
             ],
           }
         : {}),
@@ -271,27 +356,46 @@ export class PrismaOperationRepository implements OperationRepository {
 
   public createDelivery(input: CreateDeliveryInput): Promise<DeliveryCreateResult> {
     return prisma.$transaction(async (transaction): Promise<DeliveryCreateResult> => {
-      const workOrder = await transaction.workOrder.findFirst({
-        where: { id: input.workOrderId, deletedAt: null },
-        select: { id: true, status: true, totalQuantity: true },
+      const customer = await transaction.customer.findFirst({
+        where: { id: input.customerId, deletedAt: null },
+        select: { id: true },
       });
-      if (!workOrder) return { kind: 'work_order_not_found' };
-      if (!['READY', 'DELIVERED'].includes(workOrder.status)) return { kind: 'work_order_not_ready' };
+      if (!customer) return { kind: 'customer_not_found' };
       const packages = await transaction.workOrderPackage.findMany({
         where: { id: { in: input.packageIds } },
-        select: { id: true, workOrderId: true, sequenceNo: true, type: true, quantity: true, deliveryId: true, deletedAt: true },
+        select: {
+          id: true,
+          workOrderId: true,
+          sequenceNo: true,
+          type: true,
+          quantity: true,
+          deliveryId: true,
+          deletedAt: true,
+          workOrder: {
+            select: {
+              customerId: true,
+              productName: true,
+              status: true,
+              deletedAt: true,
+            },
+          },
+        },
       });
-      if (packages.some((item) => item.deliveryId)) return { kind: 'package_already_delivered' };
-      if (
-        packages.length !== input.packageIds.length ||
-        packages.some((item) => item.workOrderId !== input.workOrderId || item.deletedAt)
-      ) {
+      if (packages.length !== input.packageIds.length) return { kind: 'package_not_available' };
+      if (packages.some((item) => item.workOrder.customerId !== input.customerId)) {
+        return { kind: 'package_customer_mismatch' };
+      }
+      if (packages.some((item) => item.deletedAt || item.workOrder.deletedAt)) {
         return { kind: 'package_not_available' };
+      }
+      if (packages.some((item) => item.deliveryId)) return { kind: 'package_already_delivered' };
+      if (packages.some((item) => !['READY', 'DELIVERED'].includes(item.workOrder.status))) {
+        return { kind: 'work_order_not_ready' };
       }
       const totalQuantity = packages.reduce((sum, item) => sum + item.quantity, 0);
       const delivery = await transaction.delivery.create({
         data: {
-          workOrderId: input.workOrderId,
+          customerId: input.customerId,
           totalQuantity,
           deliveredAt: input.deliveredAt,
           receiverName: input.receiverName,
@@ -302,9 +406,13 @@ export class PrismaOperationRepository implements OperationRepository {
       const claimed = await transaction.workOrderPackage.updateMany({
         where: {
           id: { in: input.packageIds },
-          workOrderId: input.workOrderId,
           deletedAt: null,
           deliveryId: null,
+          workOrder: {
+            customerId: input.customerId,
+            deletedAt: null,
+            status: { in: ['READY', 'DELIVERED'] },
+          },
         },
         data: { deliveryId: delivery.id },
       });
@@ -313,18 +421,14 @@ export class PrismaOperationRepository implements OperationRepository {
         data: packages.map((item) => ({
           deliveryId: delivery.id,
           workOrderPackageId: item.id,
+          workOrderId: item.workOrderId,
+          workOrderProductName: item.workOrder.productName,
           sequenceNo: item.sequenceNo,
           type: item.type,
           quantity: item.quantity,
         })),
       });
-      const delivered = await transaction.workOrderPackage.aggregate({
-        where: { workOrderId: input.workOrderId, deletedAt: null, deliveryId: { not: null } },
-        _sum: { quantity: true },
-      });
-      if ((delivered._sum.quantity ?? 0) >= workOrder.totalQuantity && workOrder.status === 'READY') {
-        await transaction.workOrder.update({ where: { id: workOrder.id }, data: { status: 'DELIVERED' } });
-      }
+      await recalculateWorkOrders(transaction, packages.map((item) => item.workOrderId), 'delivery');
       const created = await transaction.delivery.findUniqueOrThrow({
         where: { id: delivery.id },
         select: deliverySelection,
@@ -342,7 +446,11 @@ export class PrismaOperationRepository implements OperationRepository {
     return prisma.$transaction(async (transaction) => {
       const delivery = await transaction.delivery.findUnique({
         where: { id },
-        select: { id: true, workOrderId: true, cancelledAt: true },
+        select: {
+          id: true,
+          cancelledAt: true,
+          packageItems: { select: { workOrderId: true } },
+        },
       });
       if (!delivery) return { kind: 'delivery_not_found' };
       if (delivery.cancelledAt) return { kind: 'already_cancelled' };
@@ -355,25 +463,11 @@ export class PrismaOperationRepository implements OperationRepository {
         where: { deliveryId: id },
         data: { deliveryId: null },
       });
-      const [workOrder, delivered] = await Promise.all([
-        transaction.workOrder.findUnique({
-          where: { id: delivery.workOrderId },
-          select: { status: true, totalQuantity: true },
-        }),
-        transaction.workOrderPackage.aggregate({
-          where: { workOrderId: delivery.workOrderId, deletedAt: null, deliveryId: { not: null } },
-          _sum: { quantity: true },
-        }),
-      ]);
-      if (
-        workOrder?.status === 'DELIVERED' &&
-        (delivered._sum.quantity ?? 0) < workOrder.totalQuantity
-      ) {
-        await transaction.workOrder.update({
-          where: { id: delivery.workOrderId },
-          data: { status: 'READY' },
-        });
-      }
+      await recalculateWorkOrders(
+        transaction,
+        delivery.packageItems.map((item) => item.workOrderId),
+        'cancellation',
+      );
       const cancelledDelivery = await transaction.delivery.findUniqueOrThrow({
         where: { id },
         select: deliverySelection,

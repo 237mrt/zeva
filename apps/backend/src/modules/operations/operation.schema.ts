@@ -12,6 +12,7 @@ const optionalText = (max: number) =>
 export const workOrderPackageParamsSchema = z.object({ id: idSchema });
 export const packageIdParamsSchema = z.object({ packageId: idSchema });
 export const deliveryIdParamsSchema = z.object({ id: idSchema });
+export const customerDeliverablePackagesParamsSchema = z.object({ customerId: idSchema });
 
 export const packageWriteSchema = z.object({
   type: z.enum(packageTypes),
@@ -28,7 +29,7 @@ export const updatePackageSchema = packageWriteSchema
   .refine((value) => Object.keys(value).length > 0, 'En az bir alan güncellenmelidir.');
 
 export const createDeliverySchema = z.object({
-  workOrderId: idSchema,
+  customerId: idSchema,
   packageIds: z.array(idSchema).min(1).max(100).superRefine((ids, context) => {
     if (new Set(ids).size !== ids.length) {
       context.addIssue({ code: 'custom', message: 'Aynı paket birden fazla seçilemez.' });

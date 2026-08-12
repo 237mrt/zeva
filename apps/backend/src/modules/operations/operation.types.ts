@@ -59,6 +59,8 @@ export interface PackageUpdateInput {
 
 export interface DeliveryPackageRecord {
   id: string;
+  workOrderId: string;
+  workOrder: { id: string; productName: string };
   sequenceNo: number;
   type: PackageType;
   quantity: number;
@@ -66,8 +68,6 @@ export interface DeliveryPackageRecord {
 
 export interface DeliveryRecord {
   id: string;
-  workOrderId: string;
-  workOrder: { id: string; productName: string };
   customer: { id: string; name: string };
   totalQuantity: number;
   deliveredAt: Date;
@@ -95,7 +95,7 @@ export interface DeliveryListResult {
 }
 
 export interface CreateDeliveryInput {
-  workOrderId: string;
+  customerId: string;
   packageIds: string[];
   deliveredAt: Date;
   receiverName: string | null;
@@ -120,15 +120,35 @@ export type PackageDeleteResult =
 
 export type DeliveryCreateResult =
   | { kind: 'created'; value: DeliveryRecord }
-  | { kind: 'work_order_not_found' }
+  | { kind: 'customer_not_found' }
   | { kind: 'work_order_not_ready' }
   | { kind: 'package_not_available' }
+  | { kind: 'package_customer_mismatch' }
   | { kind: 'package_already_delivered' };
+
+export interface DeliverablePackageGroup {
+  workOrder: OperationWorkOrderSummary;
+  packages: WorkOrderPackageRecord[];
+}
+
+export interface DeliverablePackagesResult {
+  customer: { id: string; name: string };
+  workOrders: DeliverablePackageGroup[];
+  summary: {
+    workOrderCount: number;
+    packageCount: number;
+    totalQuantity: number;
+  };
+}
 
 export type DeliveryCancelResult =
   | { kind: 'cancelled'; value: DeliveryRecord }
   | { kind: 'delivery_not_found' }
   | { kind: 'already_cancelled' };
+
+export type DeliverablePackagesLookupResult =
+  | { kind: 'found'; value: DeliverablePackagesResult }
+  | { kind: 'customer_not_found' };
 
 export interface WorkOrderPackageResponse extends Omit<WorkOrderPackageRecord, 'delivery' | 'createdAt' | 'updatedAt' | 'deletedAt'> {
   delivery: { id: string; deliveredAt: string } | null;
@@ -139,6 +159,7 @@ export interface WorkOrderPackageResponse extends Omit<WorkOrderPackageRecord, '
 
 export interface DeliveryResponse extends Omit<DeliveryRecord, 'deliveredAt' | 'cancelledAt' | 'createdAt' | 'updatedAt'> {
   packageCount: number;
+  workOrderCount: number;
   deliveredAt: string;
   cancelledAt: string | null;
   createdAt: string;

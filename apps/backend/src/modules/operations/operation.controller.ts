@@ -6,6 +6,7 @@ import {
   createPackageBatchSchema,
   deliveryIdParamsSchema,
   deliveryListQuerySchema,
+  customerDeliverablePackagesParamsSchema,
   packageIdParamsSchema,
   updatePackageSchema,
   workOrderPackageParamsSchema,
@@ -36,6 +37,10 @@ export function createOperationController(service: OperationService) {
     listDeliveries: async (request: FastifyRequest) => {
       const query = deliveryListQuerySchema.parse(request.query);
       return successResponse(await service.listDeliveries(query));
+    },
+    listDeliverablePackages: async (request: FastifyRequest) => {
+      const { customerId } = customerDeliverablePackagesParamsSchema.parse(request.params);
+      return successResponse(await service.listDeliverablePackages(customerId));
     },
     getDelivery: async (request: FastifyRequest) => {
       const { id } = deliveryIdParamsSchema.parse(request.params);

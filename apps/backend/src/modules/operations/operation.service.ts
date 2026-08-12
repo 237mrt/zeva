@@ -89,6 +89,20 @@ export class OperationService {
     };
   }
 
+  public async listDeliverablePackages(customerId: string) {
+    const result = await this.repository.listDeliverablePackages(customerId);
+    if (result.kind === 'customer_not_found') {
+      throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+    }
+    return {
+      ...result.value,
+      workOrders: result.value.workOrders.map((group) => ({
+        ...group,
+        packages: group.packages.map(toPackageResponse),
+      })),
+    };
+  }
+
   public async getDelivery(id: string): Promise<DeliveryResponse> {
     const delivery = await this.repository.findDelivery(id);
     if (!delivery) throw deliveryNotFound();
@@ -97,7 +111,9 @@ export class OperationService {
 
   public async createDelivery(input: CreateDeliveryInput): Promise<DeliveryResponse> {
     const result = await this.repository.createDelivery(input);
-    if (result.kind === 'work_order_not_found') throw workOrderNotFound();
+    if (result.kind === 'customer_not_found') {
+      throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+    }
     if (result.kind === 'work_order_not_ready') {
       throw new AppError(
         409,
@@ -109,7 +125,14 @@ export class OperationService {
       throw new AppError(
         422,
         'DELIVERY_PACKAGE_NOT_AVAILABLE',
-        'Seçilen paketlerden biri bu iş emrine ait değil veya kullanılamıyor.',
+        'Seçilen paketlerden biri kullanılamıyor.',
+      );
+    }
+    if (result.kind === 'package_customer_mismatch') {
+      throw new AppError(
+        422,
+        'DELIVERY_PACKAGE_CUSTOMER_MISMATCH',
+        'Seçilen paketlerden biri bu müşteriye ait değil.',
       );
     }
     if (result.kind === 'package_already_delivered') {
