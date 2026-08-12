@@ -22,6 +22,7 @@ export interface WorkOrderRepository {
   findActiveById(id: string): Promise<WorkOrderRecord | null>;
   findActiveCustomerById(id: string): Promise<WorkOrderCustomerSummary | null>;
   findCustomerPrice(customerId: string, type: WorkOrderType): Promise<string | null>;
+  getActivePackagedQuantity(workOrderId: string): Promise<number>;
   create(input: WorkOrderWriteData): Promise<WorkOrderRecord>;
   updateActive(id: string, input: WorkOrderUpdateData): Promise<WorkOrderRecord | null>;
   updateStatusActive(id: string, status: WorkOrderStatus): Promise<WorkOrderRecord | null>;
@@ -127,6 +128,14 @@ export class PrismaWorkOrderRepository implements WorkOrderRepository {
       select: { unitPrice: true },
     });
     return price?.unitPrice.toFixed(2) ?? null;
+  }
+
+  public async getActivePackagedQuantity(workOrderId: string): Promise<number> {
+    const result = await prisma.workOrderPackage.aggregate({
+      where: { workOrderId, deletedAt: null },
+      _sum: { quantity: true },
+    });
+    return result._sum.quantity ?? 0;
   }
 
   public async create(input: WorkOrderWriteData): Promise<WorkOrderRecord> {
