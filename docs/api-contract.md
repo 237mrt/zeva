@@ -432,16 +432,78 @@ Teslimatı hard-delete etmez; `cancelledAt` alanını doldurur ve ilgili paketle
 
 Delivery hata kodları: `CUSTOMER_NOT_FOUND`, `WORK_ORDER_NOT_READY_FOR_DELIVERY`, `DELIVERY_PACKAGE_NOT_AVAILABLE`, `DELIVERY_PACKAGE_CUSTOMER_MISMATCH`, `PACKAGE_ALREADY_DELIVERED`, `DELIVERY_NOT_FOUND`, `DELIVERY_ALREADY_CANCELLED`, `VALIDATION_ERROR` ve `UNAUTHORIZED`.
 
-### Payments
+### Finance / Cari Hesaplar
 
-- `GET /api/v1/payments`
-- `POST /api/v1/payments`
-- `GET /api/v1/customers/:id/payments`
+Tüm finans endpointleri HttpOnly oturum cookie'si gerektirir. Para alanları API'de kayıpsız canonical decimal string (`"1250.00"`) olarak taşınır; bakiye ve toplamlar istemciden kabul edilmez, backend tarafından Prisma Decimal ile hesaplanır.
 
-### Accounting
+Cariye soft-delete edilmemiş ve durumu `CANCELLED` olmayan iş emirleri dahil edilir. Bir iş emrinin `totalAmount` değeri değişirse cari bakiye güncel tutarı yansıtır; soft-delete veya `CANCELLED` kayıt toplamdan çıkar, restore edilen uygun kayıt yeniden dahil olur.
 
-- `GET /api/v1/customers/:id/account`
-- `GET /api/v1/customers/:id/account/transactions`
+Cari formülü: `iş emirleri + borç düzeltmeleri - aktif tahsilatlar - alacak düzeltmeleri`. Pozitif bakiye müşteriden alınacak tutarı, negatif bakiye müşterinin alacak/avans bakiyesini, sıfır kapalı hesabı gösterir. Tahsilat mevcut borçla sınırlandırılmaz.
+
+#### `GET /api/v1/customer-accounts`
+
+Query parametreleri: `q` (müşteri adı), `page` (varsayılan `1`), `pageSize` (`1-100`, varsayılan `20`) ve `balanceStatus` (`RECEIVABLE`, `CREDIT`, `SETTLED`). Response `items`, `pagination` ve `overview` taşır. Her item müşteri özeti, `workOrderTotal`, `paymentsTotal`, borç/alacak düzeltme toplamları, `balance`, `lastPaymentAt` ve `lastActivityAt` içerir. `overview` toplam alınacak, müşteri alacağı/avans, açık cari sayısı ve cari ay tahsilatını döndürür. Liste toplamları müşteri başına sorgu yerine toplu aggregation ile üretilir.
+
+#### `GET /api/v1/customer-accounts/:customerId`
+
+Query parametreleri: `page`, `pageSize`, opsiyonel ISO datetime `from`, `to` ve hareket filtresi `type`: `WORK_ORDER`, `PAYMENT`, `ADJUSTMENT_DEBIT`, `ADJUSTMENT_CREDIT`.
+
+Response müşteri, güncel cari özeti ve deterministik olarak `occurredAt desc, id desc` sıralanan `statement.items` içerir. Her hareket `{ id, sourceId, type, occurredAt, description, debit, credit, cancelledAt }` taşır. İptal edilmiş tahsilat/düzeltme audit geçmişinde kalır fakat cari özete dahil edilmez. Bulunmayan veya soft-delete müşteri `404 CUSTOMER_NOT_FOUND` alır.
+
+### Payments / Tahsilatlar
+
+`PaymentMethod`: `CASH`, `BANK_TRANSFER`, `CARD`, `OTHER`.
+
+#### `GET /api/v1/payments`
+
+Query parametreleri: `q` (müşteri adı, referans no veya not), `page`, `pageSize`, `customerId`, `method`, ISO datetime `paidFrom`, `paidTo` ve boolean `cancelled`. Aktif ve iptal edilmiş kayıtlar audit bilgileriyle listelenebilir.
+
+#### `POST /api/v1/payments`
+
+```json
+{
+  "customerId": "customer-id",
+  "amount": "1250.00",
+  "method": "BANK_TRANSFER",
+  "paidAt": "2026-08-12T10:30:00.000Z",
+  "referenceNo": "EFT-42",
+  "notes": "Ağustos tahsilatı"
+}
+```
+
+`amount` sıfırdan büyük, en fazla 16 tam ve 2 ondalık basamaklı decimal string olmalıdır. Fazla tahsilat kabul edilir ve negatif cari bakiye oluşturabilir. Müşteri aktif olmalıdır; soft-delete müşteri `404 CUSTOMER_NOT_FOUND` alır. Başarılı response `201` ve `data.payment` döndürür.
+
+#### `GET /api/v1/payments/:id`
+
+Tahsilatın müşteri, tutar, yöntem, tarih, referans, not, oluşturulma ve iptal bilgisini döndürür. Bulunmayan kayıt `404 PAYMENT_NOT_FOUND` alır.
+
+#### `POST /api/v1/payments/:id/cancel`
+
+Hard-delete yapmaz; koşullu atomik güncellemeyle `cancelledAt` set eder. Kayıt audit geçmişinde kalır ve cari toplamdan çıkar. İkinci iptal `409 PAYMENT_ALREADY_CANCELLED` döner.
+
+### Account Adjustments / Cari Düzeltmeler
+
+`AccountAdjustmentType`: `DEBIT` (borç ekler) ve `CREDIT` (alacak/indirim ekler).
+
+#### `POST /api/v1/account-adjustments`
+
+```json
+{
+  "customerId": "customer-id",
+  "type": "DEBIT",
+  "amount": "500.00",
+  "occurredAt": "2026-08-12T10:30:00.000Z",
+  "description": "2026 öncesi açılış bakiyesi"
+}
+```
+
+`amount` pozitif decimal string, `description` trim sonrası `3-500` karakter olmalıdır. Hesaplanmış bakiye veya toplam alanı kabul edilmez. Soft-delete müşteri için kayıt oluşturulmaz.
+
+#### `POST /api/v1/account-adjustments/:id/cancel`
+
+Düzeltmeyi hard-delete etmeden iptal eder; audit hareketi korunur ve aktif cari toplamdan çıkar. İkinci iptal `409 ACCOUNT_ADJUSTMENT_ALREADY_CANCELLED`, bulunmayan kayıt `404 ACCOUNT_ADJUSTMENT_NOT_FOUND` döner.
+
+Finans hata kodları: `CUSTOMER_NOT_FOUND`, `PAYMENT_NOT_FOUND`, `PAYMENT_ALREADY_CANCELLED`, `ACCOUNT_ADJUSTMENT_NOT_FOUND`, `ACCOUNT_ADJUSTMENT_ALREADY_CANCELLED`, `VALIDATION_ERROR` ve `UNAUTHORIZED`.
 
 ### Dashboard
 
@@ -478,8 +540,13 @@ Delivery hata kodları: `CUSTOMER_NOT_FOUND`, `WORK_ORDER_NOT_READY_FOR_DELIVERY
 
 - `CASH`
 - `BANK_TRANSFER`
-- `EFT`
+- `CARD`
 - `OTHER`
+
+### AccountAdjustmentType
+
+- `DEBIT`
+- `CREDIT`
 
 ## Temel iş emri alanları
 
