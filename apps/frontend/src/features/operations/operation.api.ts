@@ -1,11 +1,12 @@
 import { apiClient } from '../../lib/api-client';
-import type { CreateDeliveryInput, Delivery, DeliveryListData, DeliveryListParams, PackageInput, PackageListData, WorkOrderPackage } from './operation.types';
+import type { CreateDeliveryInput, DeliverablePackagesData, Delivery, DeliveryListData, DeliveryListParams, PackageInput, PackageListData, WorkOrderPackage } from './operation.types';
 
 export const operationApi = {
   packages: (workOrderId: string) => apiClient.request<PackageListData>(`/work-orders/${workOrderId}/packages`),
   createPackages: (workOrderId: string, packages: PackageInput[]) => apiClient.request<PackageListData>(`/work-orders/${workOrderId}/packages`, { method: 'POST', body: JSON.stringify({ packages }) }),
   updatePackage: (id: string, input: Partial<PackageInput>) => apiClient.request<{ package: WorkOrderPackage }>(`/work-order-packages/${id}`, { method: 'PATCH', body: JSON.stringify(input) }).then((data) => data.package),
   deletePackage: (id: string) => apiClient.request<Record<string, never>>(`/work-order-packages/${id}`, { method: 'DELETE' }),
+  deliverablePackages: (customerId: string) => apiClient.request<DeliverablePackagesData>(`/customers/${customerId}/deliverable-packages`),
   deliveries: (params: DeliveryListParams) => {
     const search = new URLSearchParams({ page: String(params.page), pageSize: String(params.pageSize) });
     if (params.q) search.set('q', params.q);

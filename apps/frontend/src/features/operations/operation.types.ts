@@ -41,11 +41,16 @@ export interface PackageListData {
 
 export interface PackageInput { type: PackageType; quantity: number; notes?: string | null }
 
-export interface DeliveryPackage { id: string; sequenceNo: number; type: PackageType; quantity: number }
-export interface Delivery {
+export interface DeliveryPackage {
   id: string;
   workOrderId: string;
   workOrder: { id: string; productName: string };
+  sequenceNo: number;
+  type: PackageType;
+  quantity: number;
+}
+export interface Delivery {
+  id: string;
   customer: { id: string; name: string };
   totalQuantity: number;
   deliveredAt: string;
@@ -56,6 +61,7 @@ export interface Delivery {
   updatedAt: string;
   packages: DeliveryPackage[];
   packageCount: number;
+  workOrderCount: number;
 }
 
 export interface DeliveryListParams {
@@ -70,9 +76,22 @@ export interface DeliveryListData {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 export interface CreateDeliveryInput {
-  workOrderId: string;
+  customerId: string;
   packageIds: string[];
   deliveredAt: string;
   receiverName: string | null;
   notes: string | null;
+}
+
+export interface DeliverablePackagesData {
+  customer: { id: string; name: string };
+  workOrders: Array<{
+    workOrder: OperationWorkOrder;
+    packages: WorkOrderPackage[];
+  }>;
+  summary: {
+    workOrderCount: number;
+    packageCount: number;
+    totalQuantity: number;
+  };
 }
