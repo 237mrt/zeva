@@ -107,6 +107,16 @@ export class WorkOrderService {
       ? await this.resolveUnitPrice(customerId, type, input.unitPrice)
       : (input.unitPrice ?? existing.unitPrice);
     const totalQuantity = input.totalQuantity ?? existing.totalQuantity;
+    if (input.totalQuantity !== undefined) {
+      const packagedQuantity = await this.repository.getActivePackagedQuantity(id);
+      if (totalQuantity < packagedQuantity) {
+        throw new AppError(
+          422,
+          'WORK_ORDER_QUANTITY_BELOW_PACKAGED',
+          'İş emri adedi paketlenmiş toplam adetten düşük olamaz.',
+        );
+      }
+    }
     const receivedAt = input.receivedAt ? new Date(input.receivedAt) : existing.receivedAt;
     const dueAt =
       input.dueAt !== undefined ? (input.dueAt ? new Date(input.dueAt) : null) : existing.dueAt;

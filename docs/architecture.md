@@ -86,6 +86,14 @@ Müşteri yönetimi `src/modules/customers` altında route, controller, service,
 
 Birim fiyat iş emri üzerinde snapshot olarak saklanır. Açık fiyat yoksa ilgili `CustomerPrice` kullanılır; müşteri veya hizmet türü değişiminde aynı kural hedef ilişki için yeniden uygulanır. `totalAmount` yalnızca service katmanında Prisma Decimal arithmetic ile hesaplanır; veritabanında birim fiyat `DECIMAL(12,2)`, toplam `DECIMAL(18,2)` olarak tutulur. Durum değişikliği ayrı endpoint'tir ve bu temel aşamada katı bir geçiş state-machine'i yoktur.
 
+### Operations domain mimarisi
+
+Paketleme ve teslimat akışı `src/modules/operations` altında route, controller, service, repository, schema, mapper ve type katmanlarına ayrılır. `WorkOrderPackage`, sıra numarasıyla bir iş emrine bağlı çuval veya koliyi temsil eder ve `deletedAt` ile soft-delete edilir. Aktif paket adetleri iş emrinin toplam adedini aşamaz; iş emri toplamı da mevcut aktif paket toplamının altına indirilemez.
+
+`Delivery` müşteriye bağlıdır ve aynı müşterinin birden fazla iş emrindeki paketlerini tek transaction içinde atomik olarak teslim alabilir. Paketteki nullable `deliveryId` aktif teslimat kilididir; koşullu `updateMany` aynı paketin eşzamanlı iki teslimata bağlanmasını engeller. `DeliveryPackageItem` teslim anındaki iş emri id/adı ile paket sıra, tür ve adet bilgisini audit kaydı olarak korur. Böylece teslimat iptal edilip aktif kilit kaldırıldığında paket yeniden teslim edilebilir, geçmiş teslimat içeriği ise kaybolmaz.
+
+Create ve cancel işlemlerinde etkilenen her iş emrinin aktif teslim edilmiş paket toplamı ayrı hesaplanır. Tam teslim edilen `READY` iş emri `DELIVERED` olur; iptal sonrası eksik kalan yalnız `DELIVERED` kayıt `READY` durumuna döner. `CLOSED` ve `CANCELLED` kayıtlar otomatik değiştirilmez. Müşterinin teslim edilebilir paketleri iş emri ilişkileriyle tek Prisma sorgusunda alınır; frontend gruplama için N+1 çağrı yapmaz.
+
 ## Frontend
 
 Teknolojiler:
@@ -118,6 +126,8 @@ Frontend başlangıcında `GET /api/v1/auth/me` ile HttpOnly cookie session'ı d
 Müşteri ekranı `src/features/customers` altında API adaptörü, merkezi query key'leri, TanStack Query hook'ları, form dialog'u, detay/fiyat drawer'ı ve route ekranına ayrılır. Arama debounce edilir; liste, detay, çöp kutusu ve fiyat cache'leri mutation sonrasında kapsamlı biçimde invalidate edilir. Müşteri formları React Hook Form ve Zod kullanır; fiyat değerleri hesaplama yapılmadan string olarak API'ye taşınır.
 
 İş emri ekranı `src/features/work-orders` altında aynı feature-bazlı yapıyı izler. Merkezi query key'leri liste, detay ve çöp kutusu cache'lerini mutationlardan sonra tutarlı biçimde invalidate eder. Arama debounce edilir; müşteri, hizmet türü ve durum filtreleri sayfayı başa alır. Liste cevabıyla küçülen toplam sayfa sayısı placeholder data üzerinden değil, kesinleşmiş response üzerinden düzeltilir. Formlar React Hook Form ve Zod kullanır; dialog Escape davranışı global listener yerine aktif dialog container'ına scope edilir.
+
+Operasyon ekranı `src/features/operations` altında paket ve teslimat API adaptörleri, merkezi TanStack Query anahtarları, hızlı batch formu, paket düzenleme dialog'u ve teslimat drawer'larına ayrılır. İş emri/müşteri seçimleri ortak searchable Combobox bileşenini kullanır. Masaüstünde tablo, küçük ekranlarda kart görünümü sunulur; teslimat ve paket mutationları ilgili operasyon ve iş emri cache'lerini birlikte yeniler.
 
 ### Tasarım dili
 

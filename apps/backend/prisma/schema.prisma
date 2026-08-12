@@ -28,6 +28,11 @@ enum WorkOrderStatus {
   CANCELLED
 }
 
+enum PackageType {
+  SACK
+  BOX
+}
+
 model User {
   id           String   @id @default(cuid()) @db.VarChar(30)
   email        String   @unique @db.VarChar(191)
@@ -53,6 +58,7 @@ model Customer {
   deletedAt   DateTime?       @map("deleted_at") @db.DateTime(3)
   prices      CustomerPrice[]
   workOrders  WorkOrder[]
+  deliveries Delivery[]
 
   @@index([deletedAt])
   @@index([name])
@@ -91,6 +97,8 @@ model WorkOrder {
   updatedAt     DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt     DateTime?       @map("deleted_at") @db.DateTime(3)
   customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  packages      WorkOrderPackage[]
+  deliveryItems DeliveryPackageItem[]
 
   @@index([customerId])
   @@index([status])
@@ -98,4 +106,64 @@ model WorkOrder {
   @@index([deletedAt, receivedAt])
   @@index([dueAt])
   @@map("work_orders")
+}
+
+model WorkOrderPackage {
+  id            String                @id @default(cuid()) @db.VarChar(30)
+  workOrderId   String                @map("work_order_id") @db.VarChar(30)
+  sequenceNo    Int                   @map("sequence_no")
+  type          PackageType
+  quantity      Int
+  deliveryId    String?               @map("delivery_id") @db.VarChar(30)
+  notes         String?               @db.Text
+  createdAt     DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt     DateTime?             @map("deleted_at") @db.DateTime(3)
+  workOrder     WorkOrder             @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  delivery      Delivery?             @relation("CurrentDeliveryPackages", fields: [deliveryId], references: [id], onDelete: Restrict)
+  deliveryItems DeliveryPackageItem[]
+
+  @@unique([workOrderId, sequenceNo])
+  @@index([workOrderId, deletedAt])
+  @@index([deliveryId])
+  @@map("work_order_packages")
+}
+
+model Delivery {
+  id              String                @id @default(cuid()) @db.VarChar(30)
+  customerId      String                @map("customer_id") @db.VarChar(30)
+  totalQuantity   Int                   @map("total_quantity")
+  deliveredAt     DateTime              @map("delivered_at") @db.DateTime(3)
+  receiverName    String?               @map("receiver_name") @db.VarChar(120)
+  notes           String?               @db.Text
+  cancelledAt     DateTime?             @map("cancelled_at") @db.DateTime(3)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  customer        Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  currentPackages WorkOrderPackage[]    @relation("CurrentDeliveryPackages")
+  packageItems    DeliveryPackageItem[]
+
+  @@index([customerId, deliveredAt])
+  @@index([cancelledAt, deliveredAt])
+  @@map("deliveries")
+}
+
+model DeliveryPackageItem {
+  id                 String           @id @default(cuid()) @db.VarChar(30)
+  deliveryId         String           @map("delivery_id") @db.VarChar(30)
+  workOrderPackageId String           @map("work_order_package_id") @db.VarChar(30)
+  workOrderId        String           @map("work_order_id") @db.VarChar(30)
+  workOrderProductName String         @map("work_order_product_name") @db.VarChar(191)
+  sequenceNo         Int              @map("sequence_no")
+  type               PackageType
+  quantity           Int
+  createdAt          DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  delivery           Delivery         @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+  workOrderPackage   WorkOrderPackage @relation(fields: [workOrderPackageId], references: [id], onDelete: Restrict)
+  workOrder          WorkOrder        @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+
+  @@unique([deliveryId, workOrderPackageId])
+  @@index([workOrderPackageId])
+  @@index([workOrderId])
+  @@map("delivery_package_items")
 }

@@ -397,6 +397,18 @@ describe('WorkOrder integration', () => {
     expect(updated.totalAmount).toBe('8.75');
   });
 
+  it('iş emri adedini paketlenmiş toplamın altına düşürmez', async () => {
+    repository.setActivePackagedQuantity('work-order-alpha', 75);
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/work-orders/work-order-alpha',
+      headers: { cookie: sessionCookie },
+      payload: { totalQuantity: 50 },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json<ErrorResponse>().error.code).toBe('WORK_ORDER_QUANTITY_BELOW_PACKAGED');
+  });
+
   it('birim fiyat değişince canonical fiyat ve toplamı yeniden hesaplar', async () => {
     const response = await app.inject({
       method: 'PATCH',

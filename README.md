@@ -2,7 +2,7 @@
 
 Müşteri, iş emri, ütü-paket, baskı, teslimat ve ödeme süreçlerini tek yerden yönetmek için geliştirilen modern tekstil atölyesi yönetim sistemi.
 
-Proje altyapısına ek olarak yönetici bootstrap mekanizması, güvenli login akışı, korumalı frontend oturumu, müşteri/fiyat yönetimi ve temel iş emri yönetimi bulunur. Teslimat, ödeme ve muhasebe gibi diğer domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
+Proje altyapısına ek olarak yönetici bootstrap mekanizması, güvenli login akışı, korumalı frontend oturumu, müşteri/fiyat yönetimi, iş emri yönetimi ile çuval/koli ve paket bazlı teslimat takibi bulunur. Ödeme ve muhasebe gibi diğer domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
 
 ## Proje yapısı
 

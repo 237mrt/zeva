@@ -17,6 +17,7 @@ import {
   useWorkOrderList,
 } from './work-order.queries';
 import type { WorkOrder, WorkOrderListData, WorkOrderMutationInput } from './work-order.types';
+import { usePackageList } from '../operations/operation.queries';
 
 vi.mock('./work-order.queries', () => ({
   useWorkOrderList: vi.fn(),
@@ -32,6 +33,8 @@ vi.mock('../customers/customer.queries', () => ({
   useCustomerList: vi.fn(),
   useCustomerPrices: vi.fn(),
 }));
+
+vi.mock('../operations/operation.queries', () => ({ usePackageList: vi.fn() }));
 
 const customer: Customer = {
   id: 'customer-alpha',
@@ -141,6 +144,13 @@ function configureQueries(activeData: WorkOrderListData = listData, trashData: W
           ]
         : [],
     ) as unknown as ReturnType<typeof useCustomerPrices>,
+  );
+  vi.mocked(usePackageList).mockReturnValue(
+    queryResult({
+      workOrder: { id: workOrder.id, productName: workOrder.productName, status: workOrder.status, totalQuantity: workOrder.totalQuantity, customer: workOrder.customer },
+      packages: [],
+      summary: { workOrderTotalQuantity: 100, packagedQuantity: 0, remainingQuantity: 100, deliveredQuantity: 0, packageCount: 0, deliveredPackageCount: 0 },
+    }) as unknown as ReturnType<typeof usePackageList>,
   );
   vi.mocked(useCreateWorkOrder).mockReturnValue(
     { mutateAsync: create, isPending: false } as unknown as ReturnType<typeof useCreateWorkOrder>,

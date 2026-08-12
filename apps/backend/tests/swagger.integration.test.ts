@@ -44,6 +44,11 @@ describe('Swagger integration', () => {
         '/api/v1/work-orders/{id}': { get: {}, patch: {}, delete: {} },
         '/api/v1/work-orders/{id}/status': { patch: {} },
         '/api/v1/work-orders/{id}/restore': { post: {} },
+        '/api/v1/work-orders/{id}/packages': { get: {}, post: {} },
+        '/api/v1/work-order-packages/{packageId}': { patch: {}, delete: {} },
+        '/api/v1/deliveries': { get: {}, post: {} },
+        '/api/v1/deliveries/{id}': { get: {} },
+        '/api/v1/deliveries/{id}/cancel': { post: {} },
       },
       components: {
         securitySchemes: {
@@ -56,6 +61,18 @@ describe('Swagger integration', () => {
       ['paths', '/api/v1/auth/me', 'get', 'security'],
       [{ cookieAuth: [] }],
     );
+    for (const [path, method] of [
+      ['/api/v1/work-orders/{id}/packages', 'get'],
+      ['/api/v1/work-orders/{id}/packages', 'post'],
+      ['/api/v1/work-order-packages/{packageId}', 'patch'],
+      ['/api/v1/work-order-packages/{packageId}', 'delete'],
+      ['/api/v1/deliveries', 'get'],
+      ['/api/v1/deliveries', 'post'],
+      ['/api/v1/deliveries/{id}', 'get'],
+      ['/api/v1/deliveries/{id}/cancel', 'post'],
+    ] as const) {
+      expect(document).toHaveProperty(['paths', path, method, 'security'], [{ cookieAuth: [] }]);
+    }
     expect(document).not.toHaveProperty([
       'paths',
       '/api/v1/auth/login',

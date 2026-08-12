@@ -22,6 +22,7 @@ export class InMemoryWorkOrderRepository implements WorkOrderRepository {
   private readonly customers = new Map<string, CustomerRecord>();
   private readonly prices = new Map<string, string>();
   private readonly workOrders = new Map<string, WorkOrderRecord>();
+  private readonly packagedQuantities = new Map<string, number>();
   private nextId = 1;
 
   public constructor(
@@ -80,6 +81,14 @@ export class InMemoryWorkOrderRepository implements WorkOrderRepository {
 
   public setCustomerPrice(customerId: string, type: WorkOrderType, unitPrice: string): void {
     this.prices.set(`${customerId}:${type}`, unitPrice);
+  }
+
+  public getActivePackagedQuantity(workOrderId: string): Promise<number> {
+    return Promise.resolve(this.packagedQuantities.get(workOrderId) ?? 0);
+  }
+
+  public setActivePackagedQuantity(workOrderId: string, quantity: number): void {
+    this.packagedQuantities.set(workOrderId, quantity);
   }
 
   public create(input: WorkOrderWriteData): Promise<WorkOrderRecord> {

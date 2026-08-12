@@ -4,6 +4,7 @@ import { loggerConfiguration } from './config/logger.js';
 import { prisma } from './lib/prisma.js';
 import type { AuthService } from './modules/auth/auth.service.js';
 import type { CustomerService } from './modules/customers/customer.service.js';
+import type { OperationService } from './modules/operations/operation.service.js';
 import type { WorkOrderService } from './modules/work-orders/work-order.service.js';
 import { registerAuthPlugin } from './plugins/auth.js';
 import { registerErrorHandlers } from './plugins/error-handler.js';
@@ -15,6 +16,7 @@ export interface BuildAppOptions {
   authService?: AuthService;
   customerService?: CustomerService;
   workOrderService?: WorkOrderService;
+  operationService?: OperationService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -31,6 +33,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     ...(options.authService ? { authService: options.authService } : {}),
     ...(options.customerService ? { customerService: options.customerService } : {}),
     ...(options.workOrderService ? { workOrderService: options.workOrderService } : {}),
+    ...(options.operationService ? { operationService: options.operationService } : {}),
   });
 
   app.addHook('onClose', async () => {
