@@ -47,6 +47,19 @@ describe('ReportsPage', () => {
     render(<ReportsPage />); fireEvent.click(screen.getByRole('tab', { name: 'Müşteriler' })); expect(screen.getByRole('table')).toBeTruthy(); expect(screen.getAllByText('Alpha Tekstil').length).toBeGreaterThan(1); expect(screen.getAllByText('1.550,00 TL alınacak').length).toBeGreaterThan(0);
   });
 
+  it('mobil rapor kartlarında durum etiketini başlık altında dikey düzende gösterir', () => {
+    render(<ReportsPage />);
+    const workOrderMobileHeader = document.querySelector('.lg\\:hidden article .flex-col');
+    expect(workOrderMobileHeader).toBeTruthy();
+    expect(workOrderMobileHeader?.querySelector('.min-w-0')).toBeTruthy();
+    expect(workOrderMobileHeader?.querySelector('[data-report-status-badge]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Teslimatlar' }));
+    const deliveryMobileHeader = document.querySelector('.lg\\:hidden article .flex-col');
+    expect(deliveryMobileHeader).toBeTruthy();
+    expect(deliveryMobileHeader?.querySelector('[data-report-status-badge] .whitespace-nowrap')).toBeTruthy();
+    expect(screen.getAllByText('İptal Edildi').length).toBeGreaterThan(0);
+  });
+
   it('loading, error ve empty durumlarını açıkça gösterir', () => {
     vi.mocked(useWorkOrderReport).mockReturnValue(query(undefined, { isPending: true }) as unknown as ReturnType<typeof useWorkOrderReport>); const view = render(<ReportsPage />); expect(screen.getByLabelText('İş emri raporu yükleniyor')).toBeTruthy();
     vi.mocked(useWorkOrderReport).mockReturnValue(query(undefined, { isError: true }) as unknown as ReturnType<typeof useWorkOrderReport>); view.rerender(<ReportsPage />); expect(screen.getByText('İş emri raporu yüklenemedi')).toBeTruthy();
