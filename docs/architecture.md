@@ -100,6 +100,12 @@ Finans akışı `src/modules/finance` altında route, controller, service, repos
 
 Cari hesap ayrı bir kalıcı bakiye tablosu değildir. Service, soft-delete edilmemiş ve `CANCELLED` olmayan `WorkOrder.totalAmount` toplamını aktif tahsilat ve düzeltmelerle Prisma Decimal kullanarak birleştirir. Böylece iş emri fiyatındaki meşru değişiklik, silme veya restore işlemi cari hesaba ayrıca senkronizasyon gerektirmeden yansır. Müşteri cari listesi müşteri başına sorgu üretmez; iş emri, tahsilat ve düzeltmeler müşteri kimlikleri üzerinden toplu aggregate edilir. Statement kaynak kayıtları deterministik tarih/id sırasıyla tek sözleşmede birleştirir; iptal edilen finans kayıtlarını audit amacıyla gösterirken cari özete katmaz.
 
+### Reporting read-model mimarisi
+
+Raporlama `src/modules/reporting` altında route, controller, service, repository, mapper ve PDF katmanlarına ayrılır. Yeni bir kalıcı rapor tablosu tutmaz; Customers, WorkOrders, Packages, Deliveries ve Finance verilerini tarih/ilişki filtreleri ile Prisma aggregate ve groupBy sorgularından okuyan bir read-model olarak çalışır. Liste filtreleri ve pagination veritabanında uygulanır, müşteri raporu müşteri başına sorgu üretmez. Para toplamları backend'de Prisma Decimal ile hesaplanır ve API'ye canonical decimal string olarak çıkar.
+
+Dashboard tek endpointte KPI, durum dağılımı, backend saatine göre geciken işler ve mevcut kayıtların tarihlerinden birleştirilen son hareketleri döndürür. PDF katmanı Chromium veya harici servis kullanmadan PDFKit ve gömülü OFL lisanslı Noto Sans Latin Extended fontuyla memory'de A4 belge üretir. PDF endpointleri HttpOnly cookie oturumuyla korunur, güvenli dosya adları kullanır ve cari ekstre satırlarını 5.000 ile sınırlar.
+
 ## Frontend
 
 Teknolojiler:
@@ -136,6 +142,8 @@ Müşteri ekranı `src/features/customers` altında API adaptörü, merkezi quer
 Operasyon ekranı `src/features/operations` altında paket ve teslimat API adaptörleri, merkezi TanStack Query anahtarları, hızlı batch formu, paket düzenleme dialog'u ve teslimat drawer'larına ayrılır. İş emri/müşteri seçimleri ortak searchable Combobox bileşenini kullanır. Masaüstünde tablo, küçük ekranlarda kart görünümü sunulur; teslimat ve paket mutationları ilgili operasyon ve iş emri cache'lerini birlikte yeniler.
 
 Finans ekranı `src/features/finance` altında cari hesap ve tahsilat listelerini, detay drawer'larını ve React Hook Form + Zod formlarını birleştirir. Para girdileri canonical decimal string'e dönüştürülür; gösterim ve bakiye dili ortak string-safe formatter ile JS floating point kullanmadan üretilir. Searchable müşteri Combobox'ı, custom Select, confirmation dialog, toast ve responsive tablo/kart foundation'ı korunur. Müşteri detay drawer'ı yalnız kısa finans özeti gösterir ve tam cari hesaba yönlendirir.
+
+Genel Bakış ve Raporlar ekranları `src/features/reporting` altında aynı API/query ayrımını kullanır. Ortak tarih filtresi yerel gün sınırlarını ISO datetime'a çevirir; preset seçimi custom Select, müşteri seçimi searchable Combobox ile yapılır. Rapor listeleri masaüstünde tablo, küçük ekranlarda kart olarak gösterilir. PDF aksiyonları mevcut cookie tabanlı API client ile Blob indirir ve loading/toast geri bildirimi sağlar. Domain mutationları reporting cache'ini de yeniler.
 
 ### Tasarım dili
 
