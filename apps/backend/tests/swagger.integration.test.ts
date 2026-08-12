@@ -39,6 +39,11 @@ describe('Swagger integration', () => {
         '/api/v1/customers/{id}': { get: {}, patch: {}, delete: {} },
         '/api/v1/customers/{id}/restore': { post: {} },
         '/api/v1/customers/{id}/prices': { get: {}, put: {} },
+        '/api/v1/work-orders': { get: {}, post: {} },
+        '/api/v1/work-orders/trash': { get: {} },
+        '/api/v1/work-orders/{id}': { get: {}, patch: {}, delete: {} },
+        '/api/v1/work-orders/{id}/status': { patch: {} },
+        '/api/v1/work-orders/{id}/restore': { post: {} },
       },
       components: {
         securitySchemes: {
@@ -71,6 +76,14 @@ describe('Swagger integration', () => {
     );
     expect(document).toHaveProperty(
       ['paths', '/api/v1/customers/{id}/prices', 'put', 'security'],
+      [{ cookieAuth: [] }],
+    );
+    expect(document).toHaveProperty(
+      ['paths', '/api/v1/work-orders', 'post', 'security'],
+      [{ cookieAuth: [] }],
+    );
+    expect(document).toHaveProperty(
+      ['paths', '/api/v1/work-orders/{id}/status', 'patch', 'security'],
       [{ cookieAuth: [] }],
     );
   });

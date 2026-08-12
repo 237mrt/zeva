@@ -61,14 +61,6 @@ export function CustomerFormDialog({
     reset(defaultValues(customer));
   }, [customer, reset]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isPending) onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isPending, onClose]);
-
   const submit: SubmitHandler<CustomerFormData> = async (values) => {
     await onSubmit({
       name: values.name.trim(),
@@ -88,6 +80,10 @@ export function CustomerFormDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="customer-form-title"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !disabled) onClose();
+        }}
         className="max-h-full w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] shadow-2xl"
       >
         <header className="flex items-start justify-between border-b border-[var(--zeva-border)] px-5 py-4 sm:px-6">

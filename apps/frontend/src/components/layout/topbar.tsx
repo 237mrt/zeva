@@ -1,4 +1,4 @@
-import { LogOut, Menu, Search } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -61,18 +61,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <button
-          type="button"
-          className="hidden h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border)] bg-[var(--zeva-surface)] px-3 text-xs text-[var(--zeva-text-muted)] hover:border-[var(--zeva-border-strong)] hover:text-[var(--zeva-text)] md:flex"
-          aria-label="Hızlı arama"
-        >
-          <Search className="size-4" aria-hidden="true" />
-          Hızlı arama
-          <kbd className="ml-3 rounded border border-[var(--zeva-border)] bg-[#0e110f] px-1.5 py-0.5 font-sans text-[10px] text-[#727a74]">
-            Ctrl K
-          </kbd>
-        </button>
-        <div className="h-7 w-px bg-[var(--zeva-border)]" aria-hidden="true" />
+        <div className="hidden h-7 w-px bg-[var(--zeva-border)] sm:block" aria-hidden="true" />
         <div className="flex items-center gap-2 rounded-lg p-1.5 pr-2">
           <span className="grid size-7 place-items-center rounded-md bg-[#29362d] text-[11px] font-bold text-[#b9d4c1]">
             {initials}

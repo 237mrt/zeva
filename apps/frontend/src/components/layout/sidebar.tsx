@@ -91,7 +91,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="rounded-lg border border-[var(--zeva-border)] bg-[#101411] px-3 py-3">
             <div className="flex items-center gap-2 text-xs font-medium text-[#c8cec9]">
               <span className="size-2 rounded-full bg-[#79b78c]" aria-hidden="true" />
-              Müşteri yönetimi aktif
+              İş emri yönetimi kullanıma hazır
             </div>
             <p className="mt-1.5 text-[11px] leading-4 text-[#737c75]">Güvenli çalışma alanı</p>
           </div>

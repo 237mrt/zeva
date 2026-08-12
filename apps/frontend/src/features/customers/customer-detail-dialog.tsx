@@ -72,14 +72,6 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
     if (pricesQuery.data) reset(formPrices(pricesQuery.data));
   }, [pricesQuery.data, reset]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !priceMutation.isPending) onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, priceMutation.isPending]);
-
   const submitPrices: SubmitHandler<PriceFormData> = async (values) => {
     const prices = workOrderTypes.flatMap((type) => {
       const value = values[type].trim();
@@ -102,6 +94,11 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
         role="dialog"
         aria-modal="true"
         aria-labelledby="customer-detail-title"
+        tabIndex={-1}
+        autoFocus
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !priceMutation.isPending) onClose();
+        }}
         className="h-full w-full max-w-2xl overflow-y-auto border-l border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] shadow-2xl animate-[panel-in_180ms_ease-out]"
       >
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--zeva-border)] bg-[var(--zeva-surface)] px-5 py-4 sm:px-6">
@@ -159,7 +156,7 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
             <div>
               <h3 className="text-base font-semibold text-[#e6ebe7]">Hizmet fiyatları</h3>
               <p className="mt-1 text-xs leading-5 text-[var(--zeva-text-muted)]">
-                Boş bırakılan hizmetler fiyat setinden kaldırılır. Değerler TL birim fiyatıdır.
+                Boş bıraktığınız hizmetlerde varsayılan fiyat kullanılmaz. Tutarları TL olarak girin.
               </p>
             </div>
 
