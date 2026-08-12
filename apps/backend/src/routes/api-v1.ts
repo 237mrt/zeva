@@ -5,6 +5,8 @@ import type { AuthService } from '../modules/auth/auth.service.js';
 import { customerRoutes } from '../modules/customers/customer.route.js';
 import type { CustomerService } from '../modules/customers/customer.service.js';
 import { healthRoutes } from '../modules/health/health.route.js';
+import { financeRoutes } from '../modules/finance/finance.route.js';
+import type { FinanceService } from '../modules/finance/finance.service.js';
 import { operationRoutes } from '../modules/operations/operation.route.js';
 import type { OperationService } from '../modules/operations/operation.service.js';
 import { workOrderRoutes } from '../modules/work-orders/work-order.route.js';
@@ -15,6 +17,7 @@ interface ApiV1RoutesOptions {
   customerService?: CustomerService;
   workOrderService?: WorkOrderService;
   operationService?: OperationService;
+  financeService?: FinanceService;
 }
 
 export const apiV1Routes: FastifyPluginAsync<ApiV1RoutesOptions> = async (app, options) => {
@@ -31,5 +34,8 @@ export const apiV1Routes: FastifyPluginAsync<ApiV1RoutesOptions> = async (app, o
   });
   await app.register(operationRoutes, {
     ...(options.operationService ? { service: options.operationService } : {}),
+  });
+  await app.register(financeRoutes, {
+    ...(options.financeService ? { service: options.financeService } : {}),
   });
 };

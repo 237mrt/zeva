@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmationContext, type ConfirmationContextValue } from '../../contexts/confirmation-context';
@@ -17,6 +18,9 @@ import {
   useUpdateCustomer,
 } from './customer.queries';
 import type { Customer, CustomerListData } from './customer.types';
+import { useAccountDetail } from '../finance/finance.queries';
+
+vi.mock('../finance/finance.queries', () => ({ useAccountDetail: vi.fn() }));
 
 vi.mock('./customer.queries', () => ({
   useCustomerList: vi.fn(),
@@ -78,9 +82,9 @@ const toastValue: ToastContextValue = {
 
 function Providers({ children }: PropsWithChildren) {
   return (
-    <ToastContext.Provider value={toastValue}>
+    <MemoryRouter><ToastContext.Provider value={toastValue}>
       <ConfirmationContext.Provider value={{ confirm }}>{children}</ConfirmationContext.Provider>
-    </ToastContext.Provider>
+    </ToastContext.Provider></MemoryRouter>
   );
 }
 
@@ -143,6 +147,13 @@ describe('CustomerPage', () => {
     restore.mockResolvedValue(customer);
     replacePrices.mockResolvedValue([]);
     confirm.mockResolvedValue(true);
+    vi.mocked(useAccountDetail).mockReturnValue(
+      queryResult({
+        customer: { id: customer.id, name: customer.name },
+        summary: { workOrderTotal: '1000.00', debitAdjustments: '0.00', paymentsTotal: '250.00', creditAdjustments: '0.00', balance: '750.00', lastPaymentAt: customer.updatedAt },
+        statement: { items: [], pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0 } },
+      }) as unknown as ReturnType<typeof useAccountDetail>,
+    );
     configureQueries();
   });
 
@@ -391,6 +402,9 @@ describe('CustomerPage', () => {
       </Providers>,
     );
     const ironing = await screen.findByLabelText('Ütü');
+    expect(screen.getByText('750,00 TL alınacak')).toBeTruthy();
+    expect(screen.getByText('250,00 TL')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Cari hesabı görüntüle/ })).toBeTruthy();
     expect((ironing as HTMLInputElement).value).toBe('1.25');
     fireEvent.change(screen.getByLabelText('Baskı'), { target: { value: '2.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Fiyatları kaydet' }));

@@ -2,7 +2,7 @@
 
 Müşteri, iş emri, ütü-paket, baskı, teslimat ve ödeme süreçlerini tek yerden yönetmek için geliştirilen modern tekstil atölyesi yönetim sistemi.
 
-Proje altyapısına ek olarak yönetici bootstrap mekanizması, güvenli login akışı, korumalı frontend oturumu, müşteri/fiyat yönetimi, iş emri yönetimi ile çuval/koli ve paket bazlı teslimat takibi bulunur. Ödeme ve muhasebe gibi diğer domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
+Proje altyapısına ek olarak yönetici bootstrap mekanizması, güvenli login akışı, korumalı frontend oturumu, müşteri/fiyat yönetimi, iş emri yönetimi, çuval/koli ve paket bazlı teslimat takibi ile tahsilat ve cari hesap yönetimi bulunur. Dashboard ve raporlama gibi diğer domain özellikleri sonraki feature branch'lerinde uçtan uca geliştirilecektir.
 
 ## Proje yapısı
 
@@ -88,6 +88,8 @@ Servis adresleri:
 - Backend API: `http://localhost:3000/api/v1`
 - Health endpoint: `http://localhost:3000/api/v1/health`
 - Swagger UI: `http://localhost:3000/docs`
+
+Uygulama; müşteri, iş emri, paketleme/teslimat akışlarına ek olarak müşteri bazlı cari hesap, tahsilat ve gerekçeli cari düzeltme yönetimini destekler. Finansal tutarlar API'de decimal string olarak taşınır ve backend tarafından hesaplanır.
 
 MySQL loglarını izlemek ve ortamı durdurmak için:
 

@@ -94,6 +94,12 @@ Paketleme ve teslimat akışı `src/modules/operations` altında route, controll
 
 Create ve cancel işlemlerinde etkilenen her iş emrinin aktif teslim edilmiş paket toplamı ayrı hesaplanır. Tam teslim edilen `READY` iş emri `DELIVERED` olur; iptal sonrası eksik kalan yalnız `DELIVERED` kayıt `READY` durumuna döner. `CLOSED` ve `CANCELLED` kayıtlar otomatik değiştirilmez. Müşterinin teslim edilebilir paketleri iş emri ilişkileriyle tek Prisma sorgusunda alınır; frontend gruplama için N+1 çağrı yapmaz.
 
+### Finance domain mimarisi
+
+Finans akışı `src/modules/finance` altında route, controller, service, repository, schema, mapper ve type katmanlarına ayrılır. `Payment` müşteri seviyesindeki tahsilatı, `AccountAdjustment` ise gerekçeli borç veya alacak düzeltmesini temsil eder. İki kayıt da hard-delete edilmez; `cancelledAt` ile audit geçmişi korunur ve koşullu atomik iptal aynı kaydın eşzamanlı iki kez iptal edilmesini engeller.
+
+Cari hesap ayrı bir kalıcı bakiye tablosu değildir. Service, soft-delete edilmemiş ve `CANCELLED` olmayan `WorkOrder.totalAmount` toplamını aktif tahsilat ve düzeltmelerle Prisma Decimal kullanarak birleştirir. Böylece iş emri fiyatındaki meşru değişiklik, silme veya restore işlemi cari hesaba ayrıca senkronizasyon gerektirmeden yansır. Müşteri cari listesi müşteri başına sorgu üretmez; iş emri, tahsilat ve düzeltmeler müşteri kimlikleri üzerinden toplu aggregate edilir. Statement kaynak kayıtları deterministik tarih/id sırasıyla tek sözleşmede birleştirir; iptal edilen finans kayıtlarını audit amacıyla gösterirken cari özete katmaz.
+
 ## Frontend
 
 Teknolojiler:
@@ -128,6 +134,8 @@ Müşteri ekranı `src/features/customers` altında API adaptörü, merkezi quer
 İş emri ekranı `src/features/work-orders` altında aynı feature-bazlı yapıyı izler. Merkezi query key'leri liste, detay ve çöp kutusu cache'lerini mutationlardan sonra tutarlı biçimde invalidate eder. Arama debounce edilir; müşteri, hizmet türü ve durum filtreleri sayfayı başa alır. Liste cevabıyla küçülen toplam sayfa sayısı placeholder data üzerinden değil, kesinleşmiş response üzerinden düzeltilir. Formlar React Hook Form ve Zod kullanır; dialog Escape davranışı global listener yerine aktif dialog container'ına scope edilir.
 
 Operasyon ekranı `src/features/operations` altında paket ve teslimat API adaptörleri, merkezi TanStack Query anahtarları, hızlı batch formu, paket düzenleme dialog'u ve teslimat drawer'larına ayrılır. İş emri/müşteri seçimleri ortak searchable Combobox bileşenini kullanır. Masaüstünde tablo, küçük ekranlarda kart görünümü sunulur; teslimat ve paket mutationları ilgili operasyon ve iş emri cache'lerini birlikte yeniler.
+
+Finans ekranı `src/features/finance` altında cari hesap ve tahsilat listelerini, detay drawer'larını ve React Hook Form + Zod formlarını birleştirir. Para girdileri canonical decimal string'e dönüştürülür; gösterim ve bakiye dili ortak string-safe formatter ile JS floating point kullanmadan üretilir. Searchable müşteri Combobox'ı, custom Select, confirmation dialog, toast ve responsive tablo/kart foundation'ı korunur. Müşteri detay drawer'ı yalnız kısa finans özeti gösterir ve tam cari hesaba yönlendirir.
 
 ### Tasarım dili
 

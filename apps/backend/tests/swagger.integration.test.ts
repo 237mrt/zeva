@@ -49,6 +49,13 @@ describe('Swagger integration', () => {
         '/api/v1/deliveries': { get: {}, post: {} },
         '/api/v1/deliveries/{id}': { get: {} },
         '/api/v1/deliveries/{id}/cancel': { post: {} },
+        '/api/v1/customer-accounts': { get: {} },
+        '/api/v1/customer-accounts/{customerId}': { get: {} },
+        '/api/v1/payments': { get: {}, post: {} },
+        '/api/v1/payments/{id}': { get: {} },
+        '/api/v1/payments/{id}/cancel': { post: {} },
+        '/api/v1/account-adjustments': { post: {} },
+        '/api/v1/account-adjustments/{id}/cancel': { post: {} },
       },
       components: {
         securitySchemes: {
@@ -70,6 +77,14 @@ describe('Swagger integration', () => {
       ['/api/v1/deliveries', 'post'],
       ['/api/v1/deliveries/{id}', 'get'],
       ['/api/v1/deliveries/{id}/cancel', 'post'],
+      ['/api/v1/customer-accounts', 'get'],
+      ['/api/v1/customer-accounts/{customerId}', 'get'],
+      ['/api/v1/payments', 'get'],
+      ['/api/v1/payments', 'post'],
+      ['/api/v1/payments/{id}', 'get'],
+      ['/api/v1/payments/{id}/cancel', 'post'],
+      ['/api/v1/account-adjustments', 'post'],
+      ['/api/v1/account-adjustments/{id}/cancel', 'post'],
     ] as const) {
       expect(document).toHaveProperty(['paths', path, method, 'security'], [{ cookieAuth: [] }]);
     }

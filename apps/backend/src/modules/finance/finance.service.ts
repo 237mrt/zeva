@@ -1,0 +1,25 @@
+import { Prisma } from '../../generated/prisma/client.js';
+import { AppError } from '../../shared/errors/app-error.js';
+import { toAdjustmentResponse, toPaymentResponse } from './finance.mapper.js';
+import { financeRepository } from './finance.repository.js';
+import type { AccountListQuery, AdjustmentWriteInput, FinanceRepository, MoneyTotals, PaymentListQuery, PaymentWriteInput, StatementQuery } from './finance.types.js';
+
+const zero = () => new Prisma.Decimal(0);
+function totals(source:{workOrderTotal:string;debitAdjustments:string;paymentsTotal:string;creditAdjustments:string}):MoneyTotals { const work=new Prisma.Decimal(source.workOrderTotal);const debit=new Prisma.Decimal(source.debitAdjustments);const payments=new Prisma.Decimal(source.paymentsTotal);const credit=new Prisma.Decimal(source.creditAdjustments);return {workOrderTotal:work.toFixed(2),debitAdjustments:debit.toFixed(2),paymentsTotal:payments.toFixed(2),creditAdjustments:credit.toFixed(2),balance:work.add(debit).sub(payments).sub(credit).toFixed(2)}; }
+const customerNotFound=()=>new AppError(404,'CUSTOMER_NOT_FOUND','Müşteri bulunamadı.');
+const paymentNotFound=()=>new AppError(404,'PAYMENT_NOT_FOUND','Tahsilat bulunamadı.');
+const adjustmentNotFound=()=>new AppError(404,'ACCOUNT_ADJUSTMENT_NOT_FOUND','Cari düzeltme bulunamadı.');
+
+export class FinanceService {
+  public constructor(private readonly repository:FinanceRepository=financeRepository){}
+  public async listPayments(query:PaymentListQuery){const result=await this.repository.listPayments(query);return {items:result.items.map(toPaymentResponse),pagination:{page:query.page,pageSize:query.pageSize,total:result.total,totalPages:Math.ceil(result.total/query.pageSize)}};}
+  public async getPayment(id:string){const item=await this.repository.findPayment(id);if(!item)throw paymentNotFound();return toPaymentResponse(item);}
+  public async createPayment(input:PaymentWriteInput){if(!await this.repository.findActiveCustomer(input.customerId))throw customerNotFound();return toPaymentResponse(await this.repository.createPayment(input));}
+  public async cancelPayment(id:string){const result=await this.repository.cancelPayment(id);if(result==='not_found')throw paymentNotFound();if(result==='already_cancelled')throw new AppError(409,'PAYMENT_ALREADY_CANCELLED','Tahsilat daha önce iptal edilmiş.');return this.getPayment(id);}
+  public async createAdjustment(input:AdjustmentWriteInput){if(!await this.repository.findActiveCustomer(input.customerId))throw customerNotFound();return toAdjustmentResponse(await this.repository.createAdjustment(input));}
+  public async cancelAdjustment(id:string){const result=await this.repository.cancelAdjustment(id);if(result==='not_found')throw adjustmentNotFound();if(result==='already_cancelled')throw new AppError(409,'ACCOUNT_ADJUSTMENT_ALREADY_CANCELLED','Cari düzeltme daha önce iptal edilmiş.');}
+
+  public async listAccounts(query:AccountListQuery){const sources=await this.repository.listAccountSources(query.q);const items=sources.map((source)=>({...source,summary:totals(source),lastPaymentAt:source.lastPaymentAt?.toISOString()??null,lastActivityAt:source.lastActivityAt?.toISOString()??null})).filter((item)=>{const balance=new Prisma.Decimal(item.summary.balance);return !query.balanceStatus||(query.balanceStatus==='RECEIVABLE'?balance.gt(0):query.balanceStatus==='CREDIT'?balance.lt(0):balance.eq(0));});const start=(query.page-1)*query.pageSize;const monthStart=new Date();monthStart.setUTCDate(1);monthStart.setUTCHours(0,0,0,0);const nextMonth=new Date(monthStart);nextMonth.setUTCMonth(nextMonth.getUTCMonth()+1);const monthPayments=await this.repository.getMonthPaymentsTotal(monthStart,nextMonth);const all=sources.map(totals);const receivable=all.reduce((sum,item)=>new Prisma.Decimal(item.balance).gt(0)?sum.add(item.balance):sum,zero()).toFixed(2);const customerCredit=all.reduce((sum,item)=>new Prisma.Decimal(item.balance).lt(0)?sum.add(new Prisma.Decimal(item.balance).abs()):sum,zero()).toFixed(2);return {items:items.slice(start,start+query.pageSize),overview:{totalReceivable:receivable,totalCustomerCredit:customerCredit,openAccountCount:all.filter((item)=>!new Prisma.Decimal(item.balance).eq(0)).length,monthPayments},pagination:{page:query.page,pageSize:query.pageSize,total:items.length,totalPages:Math.ceil(items.length/query.pageSize)}};}
+  public async getAccount(customerId:string,query:StatementQuery){const source=await this.repository.getAccountDetail(customerId,query);if(!source)throw customerNotFound();return {customer:source.customer,summary:{...totals(source),lastPaymentAt:source.lastPaymentAt?.toISOString()??null},statement:{items:source.statements.map((item)=>{const isCredit=item.type==='PAYMENT'||item.type==='ADJUSTMENT_CREDIT';return {...item,occurredAt:item.occurredAt.toISOString(),cancelledAt:item.cancelledAt?.toISOString()??null,debit:isCredit?'0.00':item.amount,credit:isCredit?item.amount:'0.00'};}),pagination:{page:query.page,pageSize:query.pageSize,total:source.statementTotal,totalPages:Math.ceil(source.statementTotal/query.pageSize)}}};}
+}
+export const financeService=new FinanceService();
