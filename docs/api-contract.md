@@ -400,13 +400,17 @@ Query parametreleri:
 - `workOrderId`: opsiyonel iş emri filtresi
 - `deliveredFrom`, `deliveredTo`: opsiyonel ISO datetime aralığı
 
-Response `items` ve standart `pagination` alanlarını taşır. Liste item'ında `{ id, name }` müşteri özeti, `{ id, productName }` iş emri özeti, `packageCount`, backend hesaplı `totalQuantity`, teslim bilgileri ve iptal zamanı bulunur. İptal edilen kayıtlar audit amacıyla listede kalır.
+Response `items` ve standart `pagination` alanlarını taşır. Liste item'ında `{ id, name }` müşteri özeti, `workOrderCount`, `packageCount`, backend hesaplı `totalQuantity`, teslim bilgileri ve iptal zamanı bulunur. Tek iş emirli teslimatta ürün adı paket özetinden gösterilebilir; çoklu teslimatta arayüz `3 iş emri` gibi bir özet sunar. İptal edilen kayıtlar audit amacıyla listede kalır.
+
+#### `GET /api/v1/customers/:customerId/deliverable-packages`
+
+Aktif müşterinin `READY` veya `DELIVERED` durumundaki aktif iş emirlerine ait, soft-delete edilmemiş ve henüz teslim edilmemiş paketlerini tek sorguda getirir. Response paketleri `workOrders` altında iş emrine göre gruplar ve `workOrderCount`, `packageCount`, `totalQuantity` özetini taşır. Bulunmayan veya soft-delete müşteri `404 CUSTOMER_NOT_FOUND` alır.
 
 #### `POST /api/v1/deliveries`
 
 ```json
 {
-  "workOrderId": "work-order-id",
+  "customerId": "customer-id",
   "packageIds": ["package-1", "package-2"],
   "deliveredAt": "2026-08-12T10:30:00.000Z",
   "receiverName": "Ahmet Yılmaz",
@@ -414,19 +418,19 @@ Response `items` ve standart `pagination` alanlarını taşır. Liste item'ında
 }
 ```
 
-`packageIds` boş olamaz ve aynı id tekrarlanamaz. İş emri aktif ve `READY` (kısmi teslimattan sonra gerektiğinde `DELIVERED`) durumda olmalıdır. Seçilen paketlerin tamamı aynı iş emrine ait, aktif ve teslim edilmemiş olmalıdır. Backend paket adetlerini toplar; request'ten teslimat toplamı kabul edilmez. Paket claim işlemi transaction içinde `deliveryId = null` koşuluyla atomik yapılır.
+`packageIds` boş olamaz ve aynı id tekrarlanamaz. Seçilen paketler aynı müşterinin bir veya daha fazla aktif iş emrine ait olabilir; her iş emri `READY` veya `DELIVERED` durumda olmalıdır. Paketlerin tamamı aktif ve teslim edilmemiş olmalıdır. Başka müşteriye ait paket `422 DELIVERY_PACKAGE_CUSTOMER_MISMATCH` ile reddedilir. Backend tüm seçili paket adetlerini toplar; request'ten teslimat toplamı kabul edilmez. Paket claim işlemi transaction içinde `deliveryId = null` koşuluyla atomik yapılır.
 
-Kısmi teslimatta iş emri `READY` kalır. Aktif teslim edilmiş paket toplamı iş emri toplam adedine ulaştığında yalnız `READY` durumundaki iş emri otomatik `DELIVERED` olur. Başarılı response `201` ve `data.delivery` içinde müşteri/iş emri özetiyle paket listesini döndürür.
+Teslimat sonrası etkilenen her iş emri ayrı hesaplanır. Aktif teslim edilmiş paket toplamı iş emri toplam adedine ulaşan `READY` kayıt `DELIVERED` olur; kısmi teslim edilen iş emri `READY` kalır. Başarılı response `201` ve `data.delivery` içinde müşteri özeti, iş emri/paket sayıları ve her paketin iş emri snapshot'ını döndürür.
 
 #### `GET /api/v1/deliveries/:id`
 
-Teslimatın müşteri, iş emri, toplam adet, teslim alan, not, iptal bilgisi ve teslim anındaki paket listesini döndürür. Bulunamayan kayıt `404 DELIVERY_NOT_FOUND` alır.
+Teslimatın müşteri, toplam iş emri/paket/adet, teslim alan, not ve iptal bilgilerini döndürür. Paketler teslim anındaki iş emri id/adı, sıra, tür ve adet snapshot'larıyla gelir; frontend ek sorgu yapmadan iş emrine göre gruplayabilir. Bulunamayan kayıt `404 DELIVERY_NOT_FOUND` alır.
 
 #### `POST /api/v1/deliveries/:id/cancel`
 
-Teslimatı hard-delete etmez; `cancelledAt` alanını doldurur ve ilgili paketlerin aktif `deliveryId` kilidini transaction içinde kaldırır. Paketler yeniden teslim edilebilir. Teslim anındaki paket kalemleri audit kaydı olarak korunur. İş emri yalnız mevcut durumu `DELIVERED` ise ve iptal sonrası teslim edilen toplam eksikse `READY` durumuna döner; `CLOSED` iş emri otomatik açılmaz. İkinci iptal `409 DELIVERY_ALREADY_CANCELLED`, bulunamayan kayıt `404 DELIVERY_NOT_FOUND` döner.
+Teslimatı hard-delete etmez; `cancelledAt` alanını doldurur ve ilgili paketlerin aktif `deliveryId` kilidini transaction içinde kaldırır. Paketler yeniden teslim edilebilir. Teslim anındaki paket ve iş emri snapshot'ları audit kaydı olarak korunur. Etkilenen tüm iş emirleri ayrı hesaplanır; yalnız mevcut durumu `DELIVERED` olan ve iptal sonrası teslim edilen toplamı eksilen kayıt `READY` durumuna döner. `CLOSED` ve `CANCELLED` iş emirleri otomatik açılmaz. İkinci iptal `409 DELIVERY_ALREADY_CANCELLED`, bulunamayan kayıt `404 DELIVERY_NOT_FOUND` döner.
 
-Delivery hata kodları: `WORK_ORDER_NOT_FOUND`, `WORK_ORDER_NOT_READY_FOR_DELIVERY`, `DELIVERY_PACKAGE_NOT_AVAILABLE`, `PACKAGE_ALREADY_DELIVERED`, `DELIVERY_NOT_FOUND`, `DELIVERY_ALREADY_CANCELLED`, `VALIDATION_ERROR` ve `UNAUTHORIZED`.
+Delivery hata kodları: `CUSTOMER_NOT_FOUND`, `WORK_ORDER_NOT_READY_FOR_DELIVERY`, `DELIVERY_PACKAGE_NOT_AVAILABLE`, `DELIVERY_PACKAGE_CUSTOMER_MISMATCH`, `PACKAGE_ALREADY_DELIVERED`, `DELIVERY_NOT_FOUND`, `DELIVERY_ALREADY_CANCELLED`, `VALIDATION_ERROR` ve `UNAUTHORIZED`.
 
 ### Payments
 

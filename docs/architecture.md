@@ -90,7 +90,9 @@ Birim fiyat iş emri üzerinde snapshot olarak saklanır. Açık fiyat yoksa ilg
 
 Paketleme ve teslimat akışı `src/modules/operations` altında route, controller, service, repository, schema, mapper ve type katmanlarına ayrılır. `WorkOrderPackage`, sıra numarasıyla bir iş emrine bağlı çuval veya koliyi temsil eder ve `deletedAt` ile soft-delete edilir. Aktif paket adetleri iş emrinin toplam adedini aşamaz; iş emri toplamı da mevcut aktif paket toplamının altına indirilemez.
 
-`Delivery`, aynı iş emrindeki belirli paketleri transaction içinde atomik olarak teslim alır. Paketteki nullable `deliveryId` aktif teslimat kilididir; koşullu `updateMany` aynı paketin eşzamanlı iki teslimata bağlanmasını engeller. `DeliveryPackageItem` teslim anındaki sıra, tür ve adet bilgisini audit kaydı olarak korur. Böylece teslimat iptal edilip aktif kilit kaldırıldığında paket yeniden teslim edilebilir, geçmiş teslimat içeriği ise kaybolmaz. Tam teslimat `READY` iş emrini `DELIVERED` yapar; iptal yalnız mevcut durum `DELIVERED` ise ve teslim edilen adet toplamın altına düştüyse `READY` durumuna döndürür, `CLOSED` kaydı otomatik açmaz.
+`Delivery` müşteriye bağlıdır ve aynı müşterinin birden fazla iş emrindeki paketlerini tek transaction içinde atomik olarak teslim alabilir. Paketteki nullable `deliveryId` aktif teslimat kilididir; koşullu `updateMany` aynı paketin eşzamanlı iki teslimata bağlanmasını engeller. `DeliveryPackageItem` teslim anındaki iş emri id/adı ile paket sıra, tür ve adet bilgisini audit kaydı olarak korur. Böylece teslimat iptal edilip aktif kilit kaldırıldığında paket yeniden teslim edilebilir, geçmiş teslimat içeriği ise kaybolmaz.
+
+Create ve cancel işlemlerinde etkilenen her iş emrinin aktif teslim edilmiş paket toplamı ayrı hesaplanır. Tam teslim edilen `READY` iş emri `DELIVERED` olur; iptal sonrası eksik kalan yalnız `DELIVERED` kayıt `READY` durumuna döner. `CLOSED` ve `CANCELLED` kayıtlar otomatik değiştirilmez. Müşterinin teslim edilebilir paketleri iş emri ilişkileriyle tek Prisma sorgusunda alınır; frontend gruplama için N+1 çağrı yapmaz.
 
 ## Frontend
 
