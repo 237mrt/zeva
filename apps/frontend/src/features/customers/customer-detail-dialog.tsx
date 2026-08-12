@@ -1,11 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { LoaderCircle, Pencil, Save, X } from 'lucide-react';
+import { ArrowRight, LoaderCircle, Pencil, Save, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Skeleton } from '../../components/feedback/skeleton';
 import { useToast } from '../../hooks/use-toast';
+import { formatBalance, formatMoney } from '../../lib/money';
+import { useNavigate } from 'react-router-dom';
+import { useAccountDetail } from '../finance/finance.queries';
 import {
   useCustomerDetail,
   useCustomerPrices,
@@ -58,8 +61,10 @@ function formatDate(value: string): string {
 
 export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDetailDialogProps) {
   const toast = useToast();
+  const navigate = useNavigate();
   const customerQuery = useCustomerDetail(customerId);
   const pricesQuery = useCustomerPrices(customerId);
+  const accountQuery = useAccountDetail(customerId, { page: 1, pageSize: 1 });
   const priceMutation = useReplaceCustomerPrices();
   const {
     register,
@@ -151,6 +156,14 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
               <Detail label="Son güncelleme" value={formatDate(customer.updatedAt)} />
             </div>
           )}
+
+          <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div><h3 className="text-base font-semibold text-[#e6ebe7]">Cari hesap</h3><p className="mt-1 text-lg font-semibold text-white">{accountQuery.isPending ? 'Yükleniyor…' : accountQuery.data ? formatBalance(accountQuery.data.summary.balance) : 'Bilgi yüklenemedi'}</p></div>
+              <button type="button" onClick={() => { onClose(); void navigate(`/muhasebe?customerId=${customerId}`); }} className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]">Cari hesabı görüntüle <ArrowRight className="size-4" /></button>
+            </div>
+            {accountQuery.data ? <dl className="mt-4 grid grid-cols-2 gap-3"><Detail label="Toplam tahsilat" value={formatMoney(accountQuery.data.summary.paymentsTotal)} /><Detail label="Son ödeme" value={accountQuery.data.summary.lastPaymentAt ? formatDate(accountQuery.data.summary.lastPaymentAt) : '—'} /></dl> : null}
+          </section>
 
           <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-5">
             <div>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { financeKeys } from '../finance/finance.queries';
 import { workOrderApi } from './work-order.api';
 import type {
   WorkOrderListParams,
@@ -14,6 +15,13 @@ export const workOrderKeys = {
   details: () => [...workOrderKeys.all, 'detail'] as const,
   detail: (id: string) => [...workOrderKeys.details(), id] as const,
 };
+
+async function invalidateWorkOrderListsAndFinance(queryClient: ReturnType<typeof useQueryClient>) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: financeKeys.all }),
+  ]);
+}
 
 export function useWorkOrderList(params: WorkOrderListParams) {
   return useQuery({
@@ -37,7 +45,7 @@ export function useCreateWorkOrder() {
     mutationFn: workOrderApi.create,
     onSuccess: async (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateWorkOrderListsAndFinance(queryClient);
     },
   });
 }
@@ -49,7 +57,7 @@ export function useUpdateWorkOrder() {
       workOrderApi.update(id, input),
     onSuccess: async (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateWorkOrderListsAndFinance(queryClient);
     },
   });
 }
@@ -61,7 +69,7 @@ export function useUpdateWorkOrderStatus() {
       workOrderApi.updateStatus(id, status),
     onSuccess: async (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateWorkOrderListsAndFinance(queryClient);
     },
   });
 }
@@ -72,7 +80,7 @@ export function useDeleteWorkOrder() {
     mutationFn: workOrderApi.remove,
     onSuccess: async (_data, id) => {
       queryClient.removeQueries({ queryKey: workOrderKeys.detail(id) });
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateWorkOrderListsAndFinance(queryClient);
     },
   });
 }
@@ -83,7 +91,7 @@ export function useRestoreWorkOrder() {
     mutationFn: workOrderApi.restore,
     onSuccess: async (workOrder) => {
       queryClient.setQueryData(workOrderKeys.detail(workOrder.id), workOrder);
-      await queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() });
+      await invalidateWorkOrderListsAndFinance(queryClient);
     },
   });
 }

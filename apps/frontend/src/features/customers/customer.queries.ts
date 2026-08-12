@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { financeKeys } from '../finance/finance.queries';
 import { customerApi } from './customer.api';
 import type { CustomerListParams, CustomerMutationInput, CustomerPrice } from './customer.types';
 
@@ -11,6 +12,13 @@ export const customerKeys = {
   detail: (id: string) => [...customerKeys.details(), id] as const,
   prices: (id: string) => [...customerKeys.detail(id), 'prices'] as const,
 };
+
+async function invalidateCustomerListsAndFinance(queryClient: ReturnType<typeof useQueryClient>) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: financeKeys.all }),
+  ]);
+}
 
 export function useCustomerList(params: CustomerListParams) {
   return useQuery({
@@ -40,7 +48,7 @@ export function useCreateCustomer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: customerApi.create,
-    onSuccess: async () => queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
+    onSuccess: async () => invalidateCustomerListsAndFinance(queryClient),
   });
 }
 
@@ -51,7 +59,7 @@ export function useUpdateCustomer() {
       customerApi.update(id, input),
     onSuccess: async (customer) => {
       queryClient.setQueryData(customerKeys.detail(customer.id), customer);
-      await queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      await invalidateCustomerListsAndFinance(queryClient);
     },
   });
 }
@@ -62,7 +70,7 @@ export function useDeleteCustomer() {
     mutationFn: customerApi.remove,
     onSuccess: async (_data, id) => {
       queryClient.removeQueries({ queryKey: customerKeys.detail(id) });
-      await queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      await invalidateCustomerListsAndFinance(queryClient);
     },
   });
 }
@@ -73,7 +81,7 @@ export function useRestoreCustomer() {
     mutationFn: customerApi.restore,
     onSuccess: async (customer) => {
       queryClient.setQueryData(customerKeys.detail(customer.id), customer);
-      await queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      await invalidateCustomerListsAndFinance(queryClient);
     },
   });
 }
