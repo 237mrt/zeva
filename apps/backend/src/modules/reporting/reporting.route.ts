@@ -1,0 +1,29 @@
+import type { FastifyPluginCallback } from 'fastify';
+import { errorResponseSchema } from '../auth/auth.schema.js';
+import { workOrderTypes } from '../customers/customer.types.js';
+import { workOrderStatuses } from '../work-orders/work-order.types.js';
+import { createReportingController } from './reporting.controller.js';
+import { reportingService, type ReportingService } from './reporting.service.js';
+
+export interface ReportingRoutesOptions { service?: ReportingService }
+const security = [{ cookieAuth: [] }];
+const money = { type: 'string', pattern: '^-?(?:0|[1-9][0-9]*)(?:[.][0-9]{2})$' } as const;
+const dateRange = { from: { type: 'string', format: 'date-time' }, to: { type: 'string', format: 'date-time' } } as const;
+const paginationQuery = { page: { type: 'integer', minimum: 1, default: 1 }, pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 } } as const;
+const pagination = { type: 'object', required: ['page', 'pageSize', 'total', 'totalPages'], properties: { page: { type: 'integer' }, pageSize: { type: 'integer' }, total: { type: 'integer' }, totalPages: { type: 'integer' } } } as const;
+const success = (data: Record<string, unknown>) => ({ type: 'object', required: ['success', 'data'], properties: { success: { type: 'boolean', const: true }, data } }) as const;
+const idParams = (name: string) => ({ type: 'object', additionalProperties: false, required: [name], properties: { [name]: { type: 'string', minLength: 1, maxLength: 30 } } }) as const;
+const pdfResponse = { type: 'string', format: 'binary', description: 'PDF binary dosyası' } as const;
+
+export const reportingRoutes: FastifyPluginCallback<ReportingRoutesOptions> = (app, options, done) => {
+  const controller = createReportingController(options.service ?? reportingService); app.addHook('preHandler', (request) => app.authenticate(request));
+  app.get('/dashboard', { schema: { operationId: 'getDashboard', summary: 'Genel Bakış verilerini getirir', tags: ['Reporting'], security, response: { 200: success({ type: 'object', additionalProperties: true }), 401: errorResponseSchema } }, handler: controller.dashboard });
+  app.get('/reports/work-orders', { schema: { operationId: 'getWorkOrderReport', summary: 'İş emri raporunu getirir', tags: ['Reporting'], security, querystring: { type: 'object', additionalProperties: false, required: ['from', 'to'], properties: { ...dateRange, ...paginationQuery, customerId: { type: 'string', maxLength: 30 }, type: { type: 'string', enum: workOrderTypes }, status: { type: 'string', enum: workOrderStatuses } } }, response: { 200: success({ type: 'object', additionalProperties: true, required: ['summary', 'items', 'pagination'], properties: { summary: { type: 'object', additionalProperties: true, properties: { totalAmount: money } }, items: { type: 'array', items: { type: 'object', additionalProperties: true } }, pagination } }), 400: errorResponseSchema, 401: errorResponseSchema } }, handler: controller.workOrders });
+  app.get('/reports/deliveries', { schema: { operationId: 'getDeliveryReport', summary: 'Teslimat raporunu getirir', tags: ['Reporting'], security, querystring: { type: 'object', additionalProperties: false, required: ['from', 'to'], properties: { ...dateRange, ...paginationQuery, customerId: { type: 'string', maxLength: 30 }, workOrderId: { type: 'string', maxLength: 30 } } }, response: { 200: success({ type: 'object', additionalProperties: true }), 400: errorResponseSchema, 401: errorResponseSchema } }, handler: controller.deliveries });
+  app.get('/reports/finance', { schema: { operationId: 'getFinanceReport', summary: 'Finans raporunu getirir', tags: ['Reporting'], security, querystring: { type: 'object', additionalProperties: false, required: ['from', 'to'], properties: dateRange }, response: { 200: success({ type: 'object', additionalProperties: true, properties: { period: { type: 'object', additionalProperties: true, properties: { workOrderTotal: money, paymentsTotal: money } }, current: { type: 'object', additionalProperties: true, properties: { totalReceivable: money, totalCustomerCredit: money } } } }), 400: errorResponseSchema, 401: errorResponseSchema } }, handler: controller.finance });
+  app.get('/reports/customers', { schema: { operationId: 'getCustomerReport', summary: 'Müşteri raporunu getirir', tags: ['Reporting'], security, querystring: { type: 'object', additionalProperties: false, required: ['from', 'to'], properties: { ...dateRange, ...paginationQuery, q: { type: 'string', maxLength: 191 } } }, response: { 200: success({ type: 'object', additionalProperties: true }), 400: errorResponseSchema, 401: errorResponseSchema } }, handler: controller.customers });
+  app.get('/work-orders/:id/pdf', { schema: { operationId: 'downloadWorkOrderPdf', summary: 'İş emri PDF çıktısını indirir', tags: ['PDF'], security, params: idParams('id'), produces: ['application/pdf'], response: { 200: pdfResponse, 400: errorResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema } }, handler: controller.workOrderPdf });
+  app.get('/deliveries/:id/pdf', { schema: { operationId: 'downloadDeliveryPdf', summary: 'Teslimat listesi PDF çıktısını indirir', tags: ['PDF'], security, params: idParams('id'), produces: ['application/pdf'], response: { 200: pdfResponse, 400: errorResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema } }, handler: controller.deliveryPdf });
+  app.get('/customer-accounts/:customerId/pdf', { schema: { operationId: 'downloadAccountStatementPdf', summary: 'Cari hesap ekstresi PDF çıktısını indirir', tags: ['PDF'], security, params: idParams('customerId'), querystring: { type: 'object', additionalProperties: false, properties: dateRange }, produces: ['application/pdf'], response: { 200: pdfResponse, 400: errorResponseSchema, 401: errorResponseSchema, 404: errorResponseSchema } }, handler: controller.accountPdf });
+  done();
+};
