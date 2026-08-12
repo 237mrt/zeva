@@ -56,6 +56,14 @@ describe('Swagger integration', () => {
         '/api/v1/payments/{id}/cancel': { post: {} },
         '/api/v1/account-adjustments': { post: {} },
         '/api/v1/account-adjustments/{id}/cancel': { post: {} },
+        '/api/v1/dashboard': { get: {} },
+        '/api/v1/reports/work-orders': { get: {} },
+        '/api/v1/reports/deliveries': { get: {} },
+        '/api/v1/reports/finance': { get: {} },
+        '/api/v1/reports/customers': { get: {} },
+        '/api/v1/work-orders/{id}/pdf': { get: {} },
+        '/api/v1/deliveries/{id}/pdf': { get: {} },
+        '/api/v1/customer-accounts/{customerId}/pdf': { get: {} },
       },
       components: {
         securitySchemes: {
@@ -85,6 +93,14 @@ describe('Swagger integration', () => {
       ['/api/v1/payments/{id}/cancel', 'post'],
       ['/api/v1/account-adjustments', 'post'],
       ['/api/v1/account-adjustments/{id}/cancel', 'post'],
+      ['/api/v1/dashboard', 'get'],
+      ['/api/v1/reports/work-orders', 'get'],
+      ['/api/v1/reports/deliveries', 'get'],
+      ['/api/v1/reports/finance', 'get'],
+      ['/api/v1/reports/customers', 'get'],
+      ['/api/v1/work-orders/{id}/pdf', 'get'],
+      ['/api/v1/deliveries/{id}/pdf', 'get'],
+      ['/api/v1/customer-accounts/{customerId}/pdf', 'get'],
     ] as const) {
       expect(document).toHaveProperty(['paths', path, method, 'security'], [{ cookieAuth: [] }]);
     }
@@ -118,5 +134,6 @@ describe('Swagger integration', () => {
       ['paths', '/api/v1/work-orders/{id}/status', 'patch', 'security'],
       [{ cookieAuth: [] }],
     );
+    expect(document).toHaveProperty(['paths', '/api/v1/work-orders/{id}/pdf', 'get', 'responses', '200', 'content', 'application/pdf']);
   });
 });
