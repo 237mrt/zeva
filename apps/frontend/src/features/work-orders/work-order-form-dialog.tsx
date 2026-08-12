@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Calculator, LoaderCircle, Search, X } from 'lucide-react';
+import { Calculator, LoaderCircle, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, useWatch, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Combobox } from '../../components/ui/combobox';
+import { Select } from '../../components/ui/select';
 import { useCustomerList, useCustomerPrices } from '../customers/customer.queries';
-import type { Customer } from '../customers/customer.types';
 import { workOrderTypeLabels, workOrderTypes } from '../customers/customer.types';
 import type { WorkOrder, WorkOrderMutationInput } from './work-order.types';
 
@@ -135,21 +136,11 @@ export function WorkOrderFormDialog({
   });
   const pricesQuery = useCustomerPrices(selectedCustomerId || null);
   const customerOptions = useMemo(() => {
-    const items = customersQuery.data?.items ?? [];
-    if (!workOrder || items.some((customer) => customer.id === workOrder.customerId)) return items;
-    const current: Customer = {
-      id: workOrder.customer.id,
-      name: workOrder.customer.name,
-      contactName: null,
-      phone: null,
-      address: null,
-      notes: null,
-      createdAt: workOrder.createdAt,
-      updatedAt: workOrder.updatedAt,
-      deletedAt: null,
-    };
-    return [current, ...items];
-  }, [customersQuery.data?.items, workOrder]);
+    return customersQuery.data?.items ?? [];
+  }, [customersQuery.data?.items]);
+  const selectedCustomerLabel = customerOptions.find(
+    (customer) => customer.id === selectedCustomerId,
+  )?.name ?? (selectedCustomerId === workOrder?.customerId ? workOrder.customer.name : undefined);
   const defaultPrice = pricesQuery.data?.find((price) => price.type === selectedType)?.unitPrice;
   const preview = calculatePreview(totalQuantity, unitPrice);
   const disabled = isPending || isSubmitting;
@@ -195,23 +186,25 @@ export function WorkOrderFormDialog({
         </header>
 
         <form className="space-y-5 px-5 py-5 sm:px-6" noValidate onSubmit={(event) => void handleSubmit(submit)(event)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="work-order-customer-search" className="text-sm font-medium text-[#d8ded9]">Müşteri ara</label>
-              <div className="relative mt-1.5">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#778078]" aria-hidden="true" />
-                <input id="work-order-customer-search" value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Müşteri adı" className={`${fieldClass} mt-0 pl-9`} />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="work-order-customer" className="text-sm font-medium text-[#d8ded9]">Müşteri <span className="text-[var(--zeva-danger)]">*</span></label>
-              <select id="work-order-customer" aria-invalid={Boolean(errors.customerId)} className={fieldClass} {...register('customerId')}>
-                <option value="">Müşteri seçin</option>
-                {customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
-              </select>
-              {customersQuery.isFetching ? <p className="mt-1 text-xs text-[var(--zeva-text-muted)]">Müşteriler aranıyor…</p> : null}
-              {errors.customerId ? <p className="mt-1 text-xs text-[var(--zeva-danger)]">{errors.customerId.message}</p> : null}
-            </div>
+          <div>
+            <label htmlFor="work-order-customer" className="text-sm font-medium text-[#d8ded9]">Müşteri <span className="text-[var(--zeva-danger)]">*</span></label>
+            <input type="hidden" {...register('customerId')} />
+            <Combobox
+              value={selectedCustomerId}
+              selectedLabel={selectedCustomerLabel}
+              options={customerOptions.map((customer) => ({ value: customer.id, label: customer.name }))}
+              onChange={(customerId) => setValue('customerId', customerId, { shouldDirty: true, shouldValidate: true })}
+              onSearchChange={setCustomerSearch}
+              ariaLabel="Müşteri"
+              inputId="work-order-customer"
+              placeholder="Müşteri seçin veya arayın…"
+              loading={customersQuery.isFetching}
+              loadingText="Müşteriler aranıyor…"
+              emptyText="Bu aramayla eşleşen müşteri bulunamadı."
+              invalid={Boolean(errors.customerId)}
+              className="mt-1.5"
+            />
+            {errors.customerId ? <p className="mt-1 text-xs text-[var(--zeva-danger)]">{errors.customerId.message}</p> : null}
           </div>
 
           <div>
@@ -223,9 +216,15 @@ export function WorkOrderFormDialog({
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="work-order-type" className="text-sm font-medium text-[#d8ded9]">Hizmet türü</label>
-              <select id="work-order-type" className={fieldClass} {...register('type')}>
-                {workOrderTypes.map((type) => <option key={type} value={type}>{workOrderTypeLabels[type]}</option>)}
-              </select>
+              <input type="hidden" {...register('type')} />
+              <Select
+                value={selectedType}
+                options={workOrderTypes.map((type) => ({ value: type, label: workOrderTypeLabels[type] }))}
+                onChange={(type) => setValue('type', type, { shouldDirty: true, shouldValidate: true })}
+                ariaLabel="Hizmet türü"
+                triggerId="work-order-type"
+                className="mt-1.5"
+              />
             </div>
             <div>
               <label htmlFor="work-order-quantity" className="text-sm font-medium text-[#d8ded9]">Toplam adet</label>
@@ -272,7 +271,7 @@ export function WorkOrderFormDialog({
           <div className="flex items-center gap-2 rounded-lg border border-[#34483a] bg-[#19231c] px-3 py-2.5 text-sm text-[#cfe0d3]">
             <Calculator className="size-4" aria-hidden="true" />
             Tahmini toplam: <strong>{preview ? `${preview} TL` : '—'}</strong>
-            <span className="text-xs text-[#809087]">Kesin tutarı backend hesaplar.</span>
+            <span className="text-xs text-[#809087]">Kesin tutar kaydettiğinizde hesaplanır.</span>
           </div>
 
           <footer className="flex justify-end gap-3 border-t border-[var(--zeva-border)] pt-5">

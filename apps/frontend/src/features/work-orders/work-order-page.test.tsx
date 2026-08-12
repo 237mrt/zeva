@@ -163,8 +163,19 @@ function openCreateForm() {
   fireEvent.click(screen.getByRole('button', { name: 'Yeni iş emri' }));
 }
 
+function chooseSelect(label: string, option: string) {
+  fireEvent.click(screen.getByRole('button', { name: label }));
+  fireEvent.click(screen.getByRole('option', { name: option }));
+}
+
+function chooseCustomer(label: string, option: string) {
+  const combobox = screen.getByRole('combobox', { name: label });
+  fireEvent.focus(combobox);
+  fireEvent.click(screen.getByRole('option', { name: option }));
+}
+
 function fillRequiredCreateFields() {
-  fireEvent.change(screen.getByLabelText(/^Müşteri \*/), { target: { value: customer.id } });
+  chooseCustomer('Müşteri', customer.name);
   fireEvent.change(screen.getByLabelText(/İş \/ ürün adı/), { target: { value: 'Yeni Polo' } });
 }
 
@@ -184,7 +195,7 @@ describe('WorkOrderPage', () => {
     render(<WorkOrderPage />, { wrapper: Providers });
     expect(screen.getByText('Galatasaray Garson')).toBeTruthy();
     expect(screen.getAllByText('Alpha Tekstil').length).toBeGreaterThan(0);
-    expect(screen.getByText('125.00 TL')).toBeTruthy();
+    expect(screen.getByText('125,00 TL')).toBeTruthy();
   });
 
   it('loading skeleton gösterir', () => {
@@ -222,9 +233,9 @@ describe('WorkOrderPage', () => {
 
   it('müşteri, hizmet ve durum filtrelerini uygular', async () => {
     render(<WorkOrderPage />, { wrapper: Providers });
-    fireEvent.change(screen.getByLabelText('Müşteri filtresi'), { target: { value: customer.id } });
-    fireEvent.change(screen.getByLabelText('Hizmet türü filtresi'), { target: { value: 'IRONING' } });
-    fireEvent.change(screen.getByLabelText('Durum filtresi'), { target: { value: 'WAITING' } });
+    chooseCustomer('Müşteri filtresi', customer.name);
+    chooseSelect('Hizmet türü filtresi', 'Ütü');
+    chooseSelect('Durum filtresi', 'Bekliyor');
     await waitFor(() => {
       expect(vi.mocked(useWorkOrderList)).toHaveBeenLastCalledWith(
         expect.objectContaining({ customerId: customer.id, type: 'IRONING', status: 'WAITING', page: 1 }),
@@ -283,12 +294,25 @@ describe('WorkOrderPage', () => {
   it('müşteri seçer ve CustomerPrice varsayılanını forma uygular', async () => {
     render(<WorkOrderPage />, { wrapper: Providers });
     openCreateForm();
-    expect(screen.getAllByRole('option', { name: 'Alpha Tekstil' }).length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByLabelText(/^Müşteri \*/), { target: { value: customer.id } });
+    chooseCustomer('Müşteri', customer.name);
     expect(await screen.findByText('Müşteri varsayılanı: 1.25 TL')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Varsayılanı kullan' }));
     expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe('1.25');
-    expect(screen.getByText(/Kesin tutarı backend hesaplar/)).toBeTruthy();
+    expect(screen.getByText(/Kesin tutar kaydettiğinizde hesaplanır/)).toBeTruthy();
+  });
+
+  it('formdaki müşteri aramasını debounce sonrası müşteri sorgusuna taşır', async () => {
+    render(<WorkOrderPage />, { wrapper: Providers });
+    openCreateForm();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Müşteri' }), {
+      target: { value: 'Alp' },
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(useCustomerList)).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'Alp', page: 1, pageSize: 20, deleted: false }),
+      );
+    });
   });
 
   it('yeni iş emrini totalAmount göndermeden oluşturur', async () => {
@@ -327,7 +351,7 @@ describe('WorkOrderPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Düzenle: Galatasaray Garson' }));
 
     expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe('1.25');
-    fireEvent.change(screen.getByLabelText('Hizmet türü'), { target: { value: 'PRINTING' } });
+    chooseSelect('Hizmet türü', 'Baskı');
 
     await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe(''));
     expect(await screen.findByText('Müşteri varsayılanı: 2.00 TL')).toBeTruthy();
@@ -343,9 +367,7 @@ describe('WorkOrderPage', () => {
     render(<WorkOrderPage />, { wrapper: Providers });
     fireEvent.click(screen.getByRole('button', { name: 'Düzenle: Galatasaray Garson' }));
 
-    fireEvent.change(screen.getByLabelText(/^Müşteri \*/), {
-      target: { value: betaCustomer.id },
-    });
+    chooseCustomer('Müşteri', betaCustomer.name);
 
     await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>('Birim fiyat').value).toBe(''));
     expect(await screen.findByText('Müşteri varsayılanı: 3.00 TL')).toBeTruthy();
@@ -359,9 +381,7 @@ describe('WorkOrderPage', () => {
 
   it('durumu tablo üzerinden değiştirir', async () => {
     render(<WorkOrderPage />, { wrapper: Providers });
-    fireEvent.change(screen.getByLabelText('Durum: Galatasaray Garson'), {
-      target: { value: 'READY' },
-    });
+    chooseSelect('Durum: Galatasaray Garson', 'Hazır');
     await waitFor(() =>
       expect(updateStatus).toHaveBeenCalledWith({ id: workOrder.id, status: 'READY' }),
     );
@@ -370,9 +390,7 @@ describe('WorkOrderPage', () => {
   it('CANCELLED durumu için confirmation ister ve reddedilince değiştirmez', async () => {
     confirm.mockResolvedValueOnce(false);
     render(<WorkOrderPage />, { wrapper: Providers });
-    fireEvent.change(screen.getByLabelText('Durum: Galatasaray Garson'), {
-      target: { value: 'CANCELLED' },
-    });
+    chooseSelect('Durum: Galatasaray Garson', 'İptal');
     await waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(updateStatus).not.toHaveBeenCalled();
   });
@@ -381,7 +399,7 @@ describe('WorkOrderPage', () => {
     render(<WorkOrderPage />, { wrapper: Providers });
     fireEvent.click(screen.getByRole('button', { name: 'Sil: Galatasaray Garson' }));
     await waitFor(() => expect(confirm).toHaveBeenCalled());
-    expect(remove).toHaveBeenCalledWith(workOrder.id);
+    await waitFor(() => expect(remove).toHaveBeenCalledWith(workOrder.id));
   });
 
   it('trash görünümünde silinmiş iş emrini geri yükler', async () => {
