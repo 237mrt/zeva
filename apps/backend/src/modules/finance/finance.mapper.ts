@@ -1,0 +1,3 @@
+import type { AdjustmentRecord, AdjustmentResponse, PaymentRecord, PaymentResponse } from './finance.types.js';
+export const toPaymentResponse = (value: PaymentRecord): PaymentResponse => ({ ...value, paidAt: value.paidAt.toISOString(), cancelledAt: value.cancelledAt?.toISOString() ?? null, createdAt: value.createdAt.toISOString(), updatedAt: value.updatedAt.toISOString() });
+export const toAdjustmentResponse = (value: AdjustmentRecord): AdjustmentResponse => ({ ...value, occurredAt: value.occurredAt.toISOString(), cancelledAt: value.cancelledAt?.toISOString() ?? null, createdAt: value.createdAt.toISOString(), updatedAt: value.updatedAt.toISOString() });
