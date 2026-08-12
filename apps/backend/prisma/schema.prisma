@@ -33,6 +33,18 @@ enum PackageType {
   BOX
 }
 
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum AccountAdjustmentType {
+  DEBIT
+  CREDIT
+}
+
 model User {
   id           String   @id @default(cuid()) @db.VarChar(30)
   email        String   @unique @db.VarChar(191)
@@ -59,6 +71,8 @@ model Customer {
   prices      CustomerPrice[]
   workOrders  WorkOrder[]
   deliveries Delivery[]
+  payments    Payment[]
+  accountAdjustments AccountAdjustment[]
 
   @@index([deletedAt])
   @@index([name])
@@ -166,4 +180,41 @@ model DeliveryPackageItem {
   @@index([workOrderPackageId])
   @@index([workOrderId])
   @@map("delivery_package_items")
+}
+
+model Payment {
+  id          String        @id @default(cuid()) @db.VarChar(30)
+  customerId  String        @map("customer_id") @db.VarChar(30)
+  amount      Decimal       @db.Decimal(18, 2)
+  method      PaymentMethod
+  paidAt      DateTime      @map("paid_at") @db.DateTime(3)
+  referenceNo String?       @map("reference_no") @db.VarChar(120)
+  notes       String?       @db.Text
+  cancelledAt DateTime?     @map("cancelled_at") @db.DateTime(3)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  customer    Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, paidAt])
+  @@index([method, paidAt])
+  @@index([cancelledAt, paidAt])
+  @@map("payments")
+}
+
+model AccountAdjustment {
+  id          String                @id @default(cuid()) @db.VarChar(30)
+  customerId  String                @map("customer_id") @db.VarChar(30)
+  type        AccountAdjustmentType
+  amount      Decimal               @db.Decimal(18, 2)
+  occurredAt  DateTime              @map("occurred_at") @db.DateTime(3)
+  description String                @db.VarChar(500)
+  cancelledAt DateTime?             @map("cancelled_at") @db.DateTime(3)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  customer    Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([cancelledAt, occurredAt])
+  @@map("account_adjustments")
 }
