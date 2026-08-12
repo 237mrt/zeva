@@ -3,6 +3,7 @@ import type {
   CreateDeliveryInput,
   DeliveryCancelResult,
   DeliveryCreateResult,
+  DeliverablePackagesLookupResult,
   DeliveryListQuery,
   DeliveryListResult,
   DeliveryRecord,
@@ -23,19 +24,26 @@ const clonePackage = (value: WorkOrderPackageRecord): WorkOrderPackageRecord => 
 const cloneDelivery = (value: DeliveryRecord): DeliveryRecord => ({
   ...value,
   customer: { ...value.customer },
-  workOrder: { ...value.workOrder },
-  packages: value.packages.map((item) => ({ ...item })),
+  packages: value.packages.map((item) => ({ ...item, workOrder: { ...item.workOrder } })),
 });
 
 export class InMemoryOperationRepository implements OperationRepository {
   private readonly workOrders = new Map<string, WorkOrderRecord>();
   private readonly packages = new Map<string, WorkOrderPackageRecord>();
   private readonly deliveries = new Map<string, DeliveryRecord>();
+  private readonly customers = new Map<string, { id: string; name: string; active: boolean }>();
   private nextPackageId = 1;
   private nextDeliveryId = 1;
 
   public constructor(workOrders: WorkOrderRecord[], packages: WorkOrderPackageRecord[] = []) {
-    workOrders.forEach((item) => this.workOrders.set(item.id, { ...item, customer: { ...item.customer } }));
+    workOrders.forEach((item) => {
+      this.workOrders.set(item.id, { ...item, customer: { ...item.customer } });
+      const current = this.customers.get(item.customer.id);
+      this.customers.set(item.customer.id, {
+        ...item.customer,
+        active: (current?.active ?? false) || !item.deletedAt,
+      });
+    });
     packages.forEach((item) => this.packages.set(item.id, clonePackage(item)));
   }
 
@@ -120,14 +128,46 @@ export class InMemoryOperationRepository implements OperationRepository {
     return Promise.resolve({ kind: 'deleted' });
   }
 
+  public listDeliverablePackages(customerId: string): Promise<DeliverablePackagesLookupResult> {
+    const customer = this.customers.get(customerId);
+    if (!customer?.active) return Promise.resolve({ kind: 'customer_not_found' });
+    const available = [...this.packages.values()].filter((item) => {
+      const workOrder = this.activeWorkOrder(item.workOrderId);
+      return !item.deletedAt && !item.deliveryId && workOrder?.customerId === customerId && ['READY', 'DELIVERED'].includes(workOrder.status);
+    });
+    const grouped = new Map<string, PackageListResult>();
+    for (const item of available) {
+      const workOrder = this.workOrders.get(item.workOrderId)!;
+      const group = grouped.get(item.workOrderId) ?? {
+        workOrder: { id: workOrder.id, productName: workOrder.productName, status: workOrder.status, totalQuantity: workOrder.totalQuantity, customer: { ...workOrder.customer } },
+        packages: [],
+        summary: { workOrderTotalQuantity: 0, packagedQuantity: 0, remainingQuantity: 0, deliveredQuantity: 0, packageCount: 0, deliveredPackageCount: 0 },
+      };
+      group.packages.push(clonePackage(item));
+      grouped.set(item.workOrderId, group);
+    }
+    return Promise.resolve({
+      kind: 'found',
+      value: {
+        customer: { id: customer.id, name: customer.name },
+        workOrders: [...grouped.values()].map(({ workOrder, packages }) => ({ workOrder, packages })),
+        summary: {
+          workOrderCount: grouped.size,
+          packageCount: available.length,
+          totalQuantity: available.reduce((sum, item) => sum + item.quantity, 0),
+        },
+      },
+    });
+  }
+
   public listDeliveries(query: DeliveryListQuery): Promise<DeliveryListResult> {
     const search = query.q?.toLocaleLowerCase('tr-TR');
     const items = [...this.deliveries.values()]
       .filter((item) => !query.customerId || item.customer.id === query.customerId)
-      .filter((item) => !query.workOrderId || item.workOrderId === query.workOrderId)
+      .filter((item) => !query.workOrderId || item.packages.some((entry) => entry.workOrderId === query.workOrderId))
       .filter((item) => !query.deliveredFrom || item.deliveredAt >= query.deliveredFrom)
       .filter((item) => !query.deliveredTo || item.deliveredAt <= query.deliveredTo)
-      .filter((item) => !search || item.receiverName?.toLocaleLowerCase('tr-TR').includes(search) || item.customer.name.toLocaleLowerCase('tr-TR').includes(search) || item.workOrder.productName.toLocaleLowerCase('tr-TR').includes(search))
+      .filter((item) => !search || item.receiverName?.toLocaleLowerCase('tr-TR').includes(search) || item.customer.name.toLocaleLowerCase('tr-TR').includes(search) || item.packages.some((entry) => entry.workOrder.productName.toLocaleLowerCase('tr-TR').includes(search)))
       .sort((a, b) => b.deliveredAt.getTime() - a.deliveredAt.getTime());
     const start = (query.page - 1) * query.pageSize;
     return Promise.resolve({ items: items.slice(start, start + query.pageSize).map(cloneDelivery), total: items.length });
@@ -139,25 +179,35 @@ export class InMemoryOperationRepository implements OperationRepository {
   }
 
   public createDelivery(input: CreateDeliveryInput): Promise<DeliveryCreateResult> {
-    const workOrder = this.activeWorkOrder(input.workOrderId);
-    if (!workOrder) return Promise.resolve({ kind: 'work_order_not_found' });
-    if (!['READY', 'DELIVERED'].includes(workOrder.status)) return Promise.resolve({ kind: 'work_order_not_ready' });
+    const customer = this.customers.get(input.customerId);
+    if (!customer?.active) return Promise.resolve({ kind: 'customer_not_found' });
     const packages = input.packageIds.map((id) => this.packages.get(id));
-    if (packages.some((item) => item?.deliveryId)) return Promise.resolve({ kind: 'package_already_delivered' });
-    if (packages.some((item) => !item || item.deletedAt || item.workOrderId !== input.workOrderId)) return Promise.resolve({ kind: 'package_not_available' });
+    if (packages.some((item) => !item)) return Promise.resolve({ kind: 'package_not_available' });
     const available = packages as WorkOrderPackageRecord[];
+    const workOrders = available.map((item) => this.activeWorkOrder(item.workOrderId));
+    if (workOrders.some((item) => item?.customerId !== input.customerId)) return Promise.resolve({ kind: 'package_customer_mismatch' });
+    if (workOrders.some((item) => !item)) return Promise.resolve({ kind: 'package_not_available' });
+    if (workOrders.some((item) => !['READY', 'DELIVERED'].includes(item!.status))) return Promise.resolve({ kind: 'work_order_not_ready' });
+    if (packages.some((item) => item?.deliveryId)) return Promise.resolve({ kind: 'package_already_delivered' });
+    if (available.some((item) => item.deletedAt)) return Promise.resolve({ kind: 'package_not_available' });
     const id = `delivery-${this.nextDeliveryId++}`;
     const now = new Date();
     available.forEach((item) => this.packages.set(item.id, { ...item, deliveryId: id, delivery: { id, deliveredAt: input.deliveredAt }, updatedAt: now }));
     const delivery: DeliveryRecord = {
-      id, workOrderId: workOrder.id, workOrder: { id: workOrder.id, productName: workOrder.productName }, customer: { ...workOrder.customer },
+      id, customer: { id: customer.id, name: customer.name },
       totalQuantity: available.reduce((sum, item) => sum + item.quantity, 0), deliveredAt: input.deliveredAt,
       receiverName: input.receiverName, notes: input.notes, cancelledAt: null, createdAt: now, updatedAt: now,
-      packages: available.map((item) => ({ id: item.id, sequenceNo: item.sequenceNo, type: item.type, quantity: item.quantity })),
+      packages: available.map((item) => {
+        const workOrder = this.workOrders.get(item.workOrderId)!;
+        return { id: item.id, workOrderId: item.workOrderId, workOrder: { id: workOrder.id, productName: workOrder.productName }, sequenceNo: item.sequenceNo, type: item.type, quantity: item.quantity };
+      }),
     };
     this.deliveries.set(id, delivery);
-    const deliveredTotal = [...this.packages.values()].filter((item) => item.workOrderId === workOrder.id && !item.deletedAt && item.deliveryId).reduce((sum, item) => sum + item.quantity, 0);
-    if (deliveredTotal >= workOrder.totalQuantity && workOrder.status === 'READY') this.workOrders.set(workOrder.id, { ...workOrder, status: 'DELIVERED' });
+    for (const workOrderId of new Set(available.map((item) => item.workOrderId))) {
+      const workOrder = this.workOrders.get(workOrderId)!;
+      const deliveredTotal = [...this.packages.values()].filter((item) => item.workOrderId === workOrder.id && !item.deletedAt && item.deliveryId).reduce((sum, item) => sum + item.quantity, 0);
+      if (deliveredTotal >= workOrder.totalQuantity && workOrder.status === 'READY') this.workOrders.set(workOrder.id, { ...workOrder, status: 'DELIVERED' });
+    }
     return Promise.resolve({ kind: 'created', value: cloneDelivery(delivery) });
   }
 
@@ -172,8 +222,12 @@ export class InMemoryOperationRepository implements OperationRepository {
       const current = this.packages.get(item.id);
       if (current?.deliveryId === id) this.packages.set(item.id, { ...current, deliveryId: null, delivery: null, updatedAt: now });
     });
-    const workOrder = this.workOrders.get(delivery.workOrderId);
-    if (workOrder?.status === 'DELIVERED') this.workOrders.set(workOrder.id, { ...workOrder, status: 'READY' });
+    for (const workOrderId of new Set(delivery.packages.map((item) => item.workOrderId))) {
+      const workOrder = this.workOrders.get(workOrderId);
+      if (!workOrder || workOrder.status !== 'DELIVERED') continue;
+      const deliveredTotal = [...this.packages.values()].filter((item) => item.workOrderId === workOrderId && !item.deletedAt && item.deliveryId).reduce((sum, item) => sum + item.quantity, 0);
+      if (deliveredTotal < workOrder.totalQuantity) this.workOrders.set(workOrder.id, { ...workOrder, status: 'READY' });
+    }
     return Promise.resolve({ kind: 'cancelled', value: cloneDelivery(cancelled) });
   }
 }

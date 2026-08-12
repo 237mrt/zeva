@@ -31,6 +31,7 @@ describe('Operations integration', () => {
     repository = new InMemoryOperationRepository([
       workOrder(),
       workOrder({ id: 'work-order-other', productName: 'Polo Yaka', totalQuantity: 300 }),
+      workOrder({ id: 'work-order-beta', customerId: 'customer-beta', customer: { id: 'customer-beta', name: 'Beta Konfeksiyon' }, productName: 'Forma', totalQuantity: 400 }),
       workOrder({ id: 'work-order-waiting', status: 'WAITING' }),
       workOrder({ id: 'work-order-closed', status: 'CLOSED' }),
       workOrder({ id: 'work-order-deleted', deletedAt: now }),
@@ -59,8 +60,9 @@ describe('Operations integration', () => {
       ['POST', '/api/v1/work-orders/work-order-ready/packages', { packages: [{ type: 'SACK', quantity: 1 }] }],
       ['PATCH', '/api/v1/work-order-packages/package-1', { quantity: 1 }],
       ['DELETE', '/api/v1/work-order-packages/package-1', undefined],
+      ['GET', '/api/v1/customers/customer-alpha/deliverable-packages', undefined],
       ['GET', '/api/v1/deliveries', undefined],
-      ['POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: ['package-1'], deliveredAt: now.toISOString() }],
+      ['POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: ['package-1'], deliveredAt: now.toISOString() }],
       ['GET', '/api/v1/deliveries/delivery-1', undefined],
       ['POST', '/api/v1/deliveries/delivery-1/cancel', undefined],
     ];
@@ -106,22 +108,22 @@ describe('Operations integration', () => {
     expect(list.json<SuccessResponse<{ packages: unknown[]; summary: { packagedQuantity: number } }>>().data).toMatchObject({ packages: [expect.objectContaining({ type: 'BOX', notes: 'Mavi koli' })], summary: { packagedQuantity: 250 } });
   });
 
-  it('boş/duplicate packageIds ve farklı iş emri paket enjeksiyonunu reddeder', async () => {
+  it('boş/duplicate packageIds ve farklı müşteri paket enjeksiyonunu reddeder', async () => {
     const packages = await createPackages('work-order-ready', [250]);
-    const other = await createPackages('work-order-other', [100]);
+    const other = await createPackages('work-order-beta', [100]);
     const bodies = [
-      { workOrderId: 'work-order-ready', packageIds: [], deliveredAt: now.toISOString() },
-      { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id, packages.packages[0]!.id], deliveredAt: now.toISOString() },
+      { customerId: 'customer-alpha', packageIds: [], deliveredAt: now.toISOString() },
+      { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id, packages.packages[0]!.id], deliveredAt: now.toISOString() },
     ];
     for (const body of bodies) expect((await request('POST', '/api/v1/deliveries', body)).statusCode).toBe(400);
-    const injected = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [other.packages[0]!.id], deliveredAt: now.toISOString() });
+    const injected = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [other.packages[0]!.id], deliveredAt: now.toISOString() });
     expect(injected.statusCode).toBe(422);
-    expect(injected.json<ErrorResponse>().error.code).toBe('DELIVERY_PACKAGE_NOT_AVAILABLE');
+    expect(injected.json<ErrorResponse>().error.code).toBe('DELIVERY_PACKAGE_CUSTOMER_MISMATCH');
   });
 
   it('teslimat toplamını backend hesaplar ve kısmi teslimatı paketlerle kaydeder', async () => {
     const packages = await createPackages('work-order-ready', [250, 250, 500]);
-    const response = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: packages.packages.slice(0, 2).map((item) => item.id), deliveredAt: now.toISOString(), receiverName: 'Ahmet Yılmaz', totalQuantity: 999 });
+    const response = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: packages.packages.slice(0, 2).map((item) => item.id), deliveredAt: now.toISOString(), receiverName: 'Ahmet Yılmaz', totalQuantity: 999 });
     const delivery = response.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery;
     expect(response.statusCode).toBe(201);
     expect(delivery.totalQuantity).toBe(500);
@@ -129,13 +131,55 @@ describe('Operations integration', () => {
     expect(repository.getWorkOrderStatus('work-order-ready')).toBe('READY');
   });
 
+  it('tek teslimatta aynı müşterinin birden fazla iş emrinden paketlerini teslim eder', async () => {
+    const first = await createPackages('work-order-ready', [500, 500]);
+    const second = await createPackages('work-order-other', [100, 200]);
+    const deliverable = await request('GET', '/api/v1/customers/customer-alpha/deliverable-packages');
+    const available = deliverable.json<SuccessResponse<{ workOrders: Array<{ workOrder: { id: string }; packages: unknown[] }>; summary: { workOrderCount: number; packageCount: number; totalQuantity: number } }>>().data;
+    expect(available.workOrders.map((group) => group.workOrder.id)).toEqual(expect.arrayContaining(['work-order-ready', 'work-order-other']));
+    expect(available.summary).toMatchObject({ workOrderCount: 2, packageCount: 4, totalQuantity: 1300 });
+
+    const response = await request('POST', '/api/v1/deliveries', {
+      customerId: 'customer-alpha',
+      packageIds: [first.packages[0]!.id, first.packages[1]!.id, second.packages[0]!.id],
+      deliveredAt: now.toISOString(),
+    });
+    const delivery = response.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery;
+    expect(response.statusCode).toBe(201);
+    expect(delivery).toMatchObject({ totalQuantity: 1100, packageCount: 3, workOrderCount: 2 });
+    expect(new Set(delivery.packages.map((item) => item.workOrderId))).toEqual(new Set(['work-order-ready', 'work-order-other']));
+    expect(repository.getWorkOrderStatus('work-order-ready')).toBe('DELIVERED');
+    expect(repository.getWorkOrderStatus('work-order-other')).toBe('READY');
+  });
+
+  it('çoklu iş emri tam teslimatını ve cancellation durumlarını ayrı ayrı yeniden hesaplar', async () => {
+    const first = await createPackages('work-order-ready', [1000]);
+    const second = await createPackages('work-order-other', [300]);
+    const created = await request('POST', '/api/v1/deliveries', {
+      customerId: 'customer-alpha',
+      packageIds: [first.packages[0]!.id, second.packages[0]!.id],
+      deliveredAt: now.toISOString(),
+    });
+    const delivery = created.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery;
+    expect(repository.getWorkOrderStatus('work-order-ready')).toBe('DELIVERED');
+    expect(repository.getWorkOrderStatus('work-order-other')).toBe('DELIVERED');
+
+    repository.setWorkOrderStatus('work-order-other', 'CLOSED');
+    const cancelled = await request('POST', `/api/v1/deliveries/${delivery.id}/cancel`);
+    const audit = cancelled.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery;
+    expect(audit.packages).toHaveLength(2);
+    expect(audit.workOrderCount).toBe(2);
+    expect(repository.getWorkOrderStatus('work-order-ready')).toBe('READY');
+    expect(repository.getWorkOrderStatus('work-order-other')).toBe('CLOSED');
+  });
+
   it('aynı veya soft-delete paketi teslimata kabul etmez ve teslim edilmiş paketi değiştirmez/silmez', async () => {
     const packages = await createPackages('work-order-ready', [250, 250]);
     await request('DELETE', `/api/v1/work-order-packages/${packages.packages[1]!.id}`);
-    const deleted = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[1]!.id], deliveredAt: now.toISOString() });
+    const deleted = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[1]!.id], deliveredAt: now.toISOString() });
     expect(deleted.statusCode).toBe(422);
-    await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
-    const duplicate = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
+    await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
+    const duplicate = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
     expect(duplicate.statusCode).toBe(409);
     for (const [method, payload] of [['PATCH', { quantity: 200 }], ['DELETE', undefined]] as const) {
       const response = await request(method, `/api/v1/work-order-packages/${packages.packages[0]!.id}`, payload);
@@ -146,18 +190,18 @@ describe('Operations integration', () => {
 
   it('yalnız READY iş emrinden teslimat oluşturur ve tam teslimatta DELIVERED yapar', async () => {
     const waiting = await createPackages('work-order-waiting', [1000]);
-    const rejected = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-waiting', packageIds: [waiting.packages[0]!.id], deliveredAt: now.toISOString() });
+    const rejected = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [waiting.packages[0]!.id], deliveredAt: now.toISOString() });
     expect(rejected.statusCode).toBe(409);
     expect(rejected.json<ErrorResponse>().error.code).toBe('WORK_ORDER_NOT_READY_FOR_DELIVERY');
     const packages = await createPackages('work-order-ready', [500, 500]);
-    const full = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: packages.packages.map((item) => item.id), deliveredAt: now.toISOString() });
+    const full = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: packages.packages.map((item) => item.id), deliveredAt: now.toISOString() });
     expect(full.statusCode).toBe(201);
     expect(repository.getWorkOrderStatus('work-order-ready')).toBe('DELIVERED');
   });
 
   it('teslimat liste arama/filtre/pagination ve detayını sunar', async () => {
     const packages = await createPackages('work-order-ready', [250]);
-    const created = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString(), receiverName: 'Ahmet Yılmaz' });
+    const created = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString(), receiverName: 'Ahmet Yılmaz' });
     const id = created.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery.id;
     for (const url of ['/api/v1/deliveries?q=Ahmet&page=1&pageSize=1', '/api/v1/deliveries?customerId=customer-alpha', '/api/v1/deliveries?workOrderId=work-order-ready']) {
       const response = await request('GET', url);
@@ -169,7 +213,7 @@ describe('Operations integration', () => {
 
   it('teslimatı iptal eder, audit paketlerini korur, paketi serbest bırakır ve tekrar teslim eder', async () => {
     const packages = await createPackages('work-order-ready', [1000]);
-    const created = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
+    const created = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
     const id = created.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery.id;
     expect(repository.getWorkOrderStatus('work-order-ready')).toBe('DELIVERED');
     const cancelled = await request('POST', `/api/v1/deliveries/${id}/cancel`);
@@ -178,12 +222,12 @@ describe('Operations integration', () => {
     expect(audit.packages).toHaveLength(1);
     expect(repository.getWorkOrderStatus('work-order-ready')).toBe('READY');
     expect((await request('POST', `/api/v1/deliveries/${id}/cancel`)).json<ErrorResponse>().error.code).toBe('DELIVERY_ALREADY_CANCELLED');
-    expect((await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() })).statusCode).toBe(201);
+    expect((await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() })).statusCode).toBe(201);
   });
 
   it('CLOSED iş emrini cancellation sırasında yeniden açmaz', async () => {
     const packages = await createPackages('work-order-ready', [100]);
-    const created = await request('POST', '/api/v1/deliveries', { workOrderId: 'work-order-ready', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
+    const created = await request('POST', '/api/v1/deliveries', { customerId: 'customer-alpha', packageIds: [packages.packages[0]!.id], deliveredAt: now.toISOString() });
     const id = created.json<SuccessResponse<{ delivery: DeliveryResponse }>>().data.delivery.id;
     repository.setWorkOrderStatus('work-order-ready', 'CLOSED');
     expect((await request('POST', `/api/v1/deliveries/${id}/cancel`)).statusCode).toBe(200);
