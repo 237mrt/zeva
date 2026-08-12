@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { financeKeys } from '../finance/finance.queries';
+import { reportingKeys } from '../reporting/reporting.queries';
 import { customerApi } from './customer.api';
 import type { CustomerListParams, CustomerMutationInput, CustomerPrice } from './customer.types';
 
@@ -17,6 +18,7 @@ async function invalidateCustomerListsAndFinance(queryClient: ReturnType<typeof 
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: customerKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: financeKeys.all }),
+    queryClient.invalidateQueries({ queryKey: reportingKeys.all }),
   ]);
 }
 

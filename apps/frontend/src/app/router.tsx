@@ -6,6 +6,8 @@ import { CustomerPage } from '../features/customers/customer-page';
 import { WorkOrderPage } from '../features/work-orders/work-order-page';
 import { OperationPage } from '../features/operations/operation-page';
 import { FinancePage } from '../features/finance/finance-page';
+import { DashboardPage } from '../features/reporting/dashboard-page';
+import { ReportsPage } from '../features/reporting/reports-page';
 import { GuestRoute, ProtectedRoute } from '../components/auth/auth-routes';
 import { AppLayout } from '../layouts/app-layout';
 import { GlobalErrorPage } from '../pages/global-error-page';
@@ -32,13 +34,7 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: (
-              <ModulePlaceholderPage
-                eyebrow="Atölye"
-                title="Genel Bakış"
-                description="Atölyenin günlük iş akışı, üretim durumu ve finansal özeti bu alanda yer alacak."
-              />
-            ),
+            element: <DashboardPage />,
           },
           {
             path: 'isler',
@@ -68,13 +64,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'raporlar',
-            element: (
-              <ModulePlaceholderPage
-                eyebrow="Analiz"
-                title="Raporlar"
-                description="Günlük, aylık ve müşteri bazlı raporlar ilerleyen aşamada burada sunulacak."
-              />
-            ),
+            element: <ReportsPage />,
           },
           {
             path: 'ayarlar',

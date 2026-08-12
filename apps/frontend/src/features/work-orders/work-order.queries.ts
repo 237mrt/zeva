@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { financeKeys } from '../finance/finance.queries';
+import { reportingKeys } from '../reporting/reporting.queries';
 import { workOrderApi } from './work-order.api';
 import type {
   WorkOrderListParams,
@@ -20,6 +21,7 @@ async function invalidateWorkOrderListsAndFinance(queryClient: ReturnType<typeof
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: workOrderKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: financeKeys.all }),
+    queryClient.invalidateQueries({ queryKey: reportingKeys.all }),
   ]);
 }
 

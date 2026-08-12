@@ -1,15 +1,18 @@
-import { Ban, X } from 'lucide-react';
+import { Ban, Download, LoaderCircle, X } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Skeleton } from '../../components/feedback/skeleton';
 import { useDeliveryDetail } from './operation.queries';
 import { packageTypeLabels, type DeliveryPackage } from './operation.types';
+import { reportingApi } from '../reporting/reporting.api';
+import { usePdfDownload } from '../reporting/use-pdf-download';
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 
 export function DeliveryDetailDialog({ id, onClose, onCancel }: { id: string; onClose: () => void; onCancel: (id: string) => void }) {
   const query = useDeliveryDetail(id);
   const item = query.data;
+  const pdf = usePdfDownload();
   const groups = useMemo(() => {
     const grouped = new Map<string, { workOrder: DeliveryPackage['workOrder']; packages: DeliveryPackage[] }>();
     for (const entry of item?.packages ?? []) {
@@ -25,7 +28,7 @@ export function DeliveryDetailDialog({ id, onClose, onCancel }: { id: string; on
       <section role="dialog" aria-modal="true" aria-labelledby="delivery-detail-title" tabIndex={-1} autoFocus onKeyDown={(event) => event.key === 'Escape' && onClose()} className="h-full w-full max-w-xl overflow-y-auto border-l border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] p-5 shadow-2xl sm:p-6">
         <header className="flex justify-between gap-4">
           <div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--zeva-accent)]">Teslimat detayı</p><h2 id="delivery-detail-title" className="mt-1 text-xl font-semibold text-white">{item?.customer.name ?? 'Teslimat yükleniyor'}</h2></div>
-          <button type="button" aria-label="Teslimat detayını kapat" onClick={onClose} className="grid size-10 place-items-center rounded-lg text-[#929b94]"><X className="size-5" /></button>
+          <div className="flex gap-2">{item ? <button type="button" disabled={pdf.pendingKey === item.id} onClick={() => void pdf.download(item.id, () => reportingApi.deliveryPdf(item.id))} className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-xs font-semibold disabled:opacity-50">{pdf.pendingKey === item.id ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} Teslimat Listesini İndir</button> : null}<button type="button" aria-label="Teslimat detayını kapat" onClick={onClose} className="grid size-10 place-items-center rounded-lg text-[#929b94]"><X className="size-5" /></button></div>
         </header>
         {query.isPending ? <div aria-label="Teslimat detayı yükleniyor" className="mt-5 space-y-3"><Skeleton className="h-28" /><Skeleton className="h-48" /></div> : query.isError || !item ? <p role="alert" className="mt-5 rounded-lg border border-[#5f3d3d] bg-[#261a1a] p-4 text-sm text-[#e4a0a0]">Teslimat detayı yüklenemedi.</p> : (
           <div className="mt-5 space-y-5">
