@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
@@ -160,6 +162,23 @@ describe('Reporting integration', () => {
       rangeLabel: 'Ağustos 2026',
     });
     expect(accBuffer.subarray(0, 4).toString()).toBe('%PDF');
+  }, 30_000);
+
+  it('font dosyalarının varlığını ve geçerli TTF/OTF magic headerını doğrular', () => {
+    const fontFiles = ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf'];
+    for (const file of fontFiles) {
+      const candidates = [
+        path.resolve(process.cwd(), 'src/assets/fonts', file),
+        path.resolve(process.cwd(), 'apps/backend/src/assets/fonts', file),
+      ];
+      const fontPath = candidates.find((candidate) => fs.existsSync(candidate));
+      expect(fontPath).toBeDefined();
+      const buf = fs.readFileSync(fontPath!);
+      expect(buf.length).toBeGreaterThan(100000);
+      const magicHex = buf.subarray(0, 4).toString('hex');
+      const isTTF = magicHex === '00010000' || magicHex === '4f54544f' || magicHex === '74727565';
+      expect(isTTF).toBe(true);
+    }
   });
 });
 
