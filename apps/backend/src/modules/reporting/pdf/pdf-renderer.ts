@@ -1,9 +1,34 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import PDFDocument from 'pdfkit';
 import type { AccountStatementPdfSource, DeliveryPdfSource, WorkOrderPdfSource } from '../reporting.types.js';
 
-const regularFont = fileURLToPath(import.meta.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'));
-const boldFont = fileURLToPath(import.meta.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-700-normal.woff'));
+function resolveFontPath(filename: string): string {
+  try {
+    const primary = fileURLToPath(import.meta.resolve(`../../../assets/fonts/${filename}`));
+    if (fs.existsSync(primary)) {
+      return primary;
+    }
+  } catch {
+    // Fallback if import.meta.resolve fails in non-standard ESM environments
+  }
+  const candidates = [
+    path.resolve(process.cwd(), 'src/assets/fonts', filename),
+    path.resolve(process.cwd(), 'apps/backend/src/assets/fonts', filename),
+    path.resolve(process.cwd(), 'dist/assets/fonts', filename),
+    path.resolve(process.cwd(), 'apps/backend/dist/assets/fonts', filename),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return fileURLToPath(import.meta.resolve(`../../../assets/fonts/${filename}`));
+}
+
+const regularFont = resolveFontPath('NotoSans-Regular.ttf');
+const boldFont = resolveFontPath('NotoSans-Bold.ttf');
 const statusLabels = { WAITING: 'Bekliyor', IN_PROGRESS: 'İşlemde', READY: 'Hazır', DELIVERED: 'Teslim Edildi', CLOSED: 'Kapalı', CANCELLED: 'İptal Edildi' } as const;
 const typeLabels = { IRONING: 'Ütü', PACKAGING: 'Paketleme', IRONING_PACKAGING: 'Ütü + Paketleme', PRINTING: 'Baskı', OTHER: 'Diğer' } as const;
 const packageLabels = { SACK: 'Çuval', BOX: 'Koli' } as const;

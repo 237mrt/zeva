@@ -7,6 +7,7 @@ import { ReportingService } from '../src/modules/reporting/reporting.service.js'
 import type { ErrorResponse, SuccessResponse } from '../src/shared/http/api-response.js';
 import { InMemoryAuthRepository } from './helpers/in-memory-auth-repository.js';
 import { InMemoryReportingRepository } from './helpers/in-memory-reporting-repository.js';
+import { renderAccountStatementPdf, renderDeliveryPdf, renderWorkOrderPdf } from '../src/modules/reporting/pdf/pdf-renderer.js';
 
 const from = '2026-08-01T00:00:00.000Z';
 const to = '2026-08-31T23:59:59.999Z';
@@ -93,4 +94,72 @@ describe('Reporting integration', () => {
     repository.workOrderPdfSource = null; repository.deliveryPdfSource = null; repository.accountSource = null;
     for (const url of ['/api/v1/work-orders/missing/pdf', '/api/v1/deliveries/missing/pdf', '/api/v1/customer-accounts/missing/pdf']) expect((await get(url)).statusCode).toBe(404);
   });
+
+  it('Türkçe içerikli (Çağrı Şen Tekstil, Ütü Şişme Çocuk Önlüğü, İşlem öğleden önce tamamlanacak) İş Emri, Teslimat ve Cari Ekstre PDFlerini sorunsuz üretir', async () => {
+    repository.workOrderPdfSource = {
+      id: 'wo-tr-test',
+      customer: { id: 'c1', name: 'Çağrı Şen Tekstil' },
+      productName: 'Ütü Şişme Çocuk Önlüğü',
+      type: 'IRONING_PACKAGING',
+      status: 'READY',
+      totalQuantity: 1000,
+      unitPrice: '15.50',
+      totalAmount: '15500.00',
+      receivedAt: now,
+      dueAt: now,
+      notes: 'İşlem öğleden önce tamamlanacak.',
+      packages: [{ sequenceNo: 1, type: 'SACK', quantity: 1000, delivered: false }],
+    };
+    const woResponse = await get('/api/v1/work-orders/wo-tr-test/pdf');
+    expect(woResponse.statusCode).toBe(200);
+    expect(woResponse.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+    expect(woResponse.rawPayload.length).toBeGreaterThan(1000);
+
+    repository.deliveryPdfSource = {
+      id: 'del-tr-test',
+      customer: { id: 'c1', name: 'Çağrı Şen Tekstil' },
+      deliveredAt: now,
+      receiverName: 'Çağrı Şen',
+      notes: 'İşlem öğleden önce tamamlanacak.',
+      cancelledAt: null,
+      packages: [
+        { workOrderId: 'wo-tr-test', productName: 'Ütü Şişme Çocuk Önlüğü', sequenceNo: 1, type: 'SACK', quantity: 1000 },
+      ],
+    };
+    const delResponse = await get('/api/v1/deliveries/del-tr-test/pdf');
+    expect(delResponse.statusCode).toBe(200);
+    expect(delResponse.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+    expect(delResponse.rawPayload.length).toBeGreaterThan(1000);
+
+    repository.accountSource = {
+      customer: { id: 'c1', name: 'Çağrı Şen Tekstil' },
+      workOrderTotal: '15500.00',
+      paymentsTotal: '5000.00',
+      debitAdjustments: '0.00',
+      creditAdjustments: '0.00',
+      truncated: false,
+      items: [
+        { id: 'wo-tr-test', type: 'WORK_ORDER', occurredAt: now, description: 'Ütü Şişme Çocuk Önlüğü', amount: '15500.00', cancelledAt: null },
+        { id: 'pay-tr-test', type: 'PAYMENT', occurredAt: now, description: 'İşlem öğleden önce tamamlanacak.', amount: '5000.00', cancelledAt: null },
+      ],
+    };
+    const accountResponse = await get(`/api/v1/customer-accounts/c1/pdf?${range}`);
+    expect(accountResponse.statusCode).toBe(200);
+    expect(accountResponse.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+    expect(accountResponse.rawPayload.length).toBeGreaterThan(1000);
+
+    const woBuffer = await renderWorkOrderPdf(repository.workOrderPdfSource);
+    expect(woBuffer.subarray(0, 4).toString()).toBe('%PDF');
+
+    const delBuffer = await renderDeliveryPdf(repository.deliveryPdfSource);
+    expect(delBuffer.subarray(0, 4).toString()).toBe('%PDF');
+
+    const accBuffer = await renderAccountStatementPdf({
+      ...repository.accountSource,
+      balance: '10500.00 TL',
+      rangeLabel: 'Ağustos 2026',
+    });
+    expect(accBuffer.subarray(0, 4).toString()).toBe('%PDF');
+  });
 });
+
