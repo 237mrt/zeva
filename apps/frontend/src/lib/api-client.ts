@@ -80,6 +80,19 @@ class ApiClient {
 
     return result.data.data as T;
   }
+
+  public async download(path: string): Promise<{ blob: Blob; filename: string }> {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const response = await fetch(`${this.baseUrl}${normalizedPath}`, { credentials: 'include', headers: { Accept: 'application/pdf' } });
+    if (!response.ok) {
+      let error = { code: 'PDF_DOWNLOAD_FAILED', message: 'PDF oluşturulamadı. Lütfen tekrar deneyin.' };
+      try { const result = apiResponseSchema.safeParse(await response.json()); if (result.success && !result.data.success) error = result.data.error; } catch { /* Use safe public fallback. */ }
+      throw new ApiError(error.code, error.message, response.status);
+    }
+    const disposition = response.headers.get('Content-Disposition') ?? '';
+    const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? 'zeva-belge.pdf';
+    return { blob: await response.blob(), filename };
+  }
 }
 
 export const apiClient = new ApiClient();

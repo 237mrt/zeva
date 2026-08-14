@@ -23,6 +23,8 @@ export async function registerSwagger(app: FastifyInstance): Promise<void> {
         { name: 'Deliveries', description: 'Paket bazlı kısmi ve tam teslimatlar' },
         { name: 'Finance', description: 'Müşteri cari hesapları ve manuel cari düzeltmeler' },
         { name: 'Payments', description: 'Müşteri tahsilat kayıtları ve iptal akışı' },
+        { name: 'Reporting', description: 'Genel Bakış ve dönemsel operasyon/finans raporları' },
+        { name: 'PDF', description: 'İş emri, teslimat ve cari hesap PDF çıktıları' },
       ],
       components: {
         securitySchemes: {

@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '../../components/feedback/empty-state';
 import { Skeleton } from '../../components/feedback/skeleton';
@@ -54,6 +55,7 @@ function formatMoney(value: string): string {
 }
 
 export function WorkOrderPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
   const { confirm } = useConfirmation();
   const [showTrash, setShowTrash] = useState(false);
@@ -67,7 +69,16 @@ export function WorkOrderPage() {
   const [status, setStatus] = useState<WorkOrderStatus | ''>('');
   const [page, setPage] = useState(1);
   const [formWorkOrder, setFormWorkOrder] = useState<WorkOrder | null | undefined>(undefined);
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(() => searchParams.get('workOrderId'));
+
+  const closeDetail = () => {
+    setDetailId(null);
+    if (searchParams.has('workOrderId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('workOrderId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -296,7 +307,7 @@ export function WorkOrderPage() {
       </section>
 
       {formWorkOrder !== undefined ? <WorkOrderFormDialog workOrder={formWorkOrder} isPending={createMutation.isPending || updateMutation.isPending} onClose={() => setFormWorkOrder(undefined)} onSubmit={submitWorkOrder} /> : null}
-      {detailId ? <WorkOrderDetailDialog workOrderId={detailId} onClose={() => setDetailId(null)} onEdit={(item) => { setDetailId(null); setFormWorkOrder(item); }} /> : null}
+      {detailId ? <WorkOrderDetailDialog workOrderId={detailId} onClose={closeDetail} onEdit={(item) => { closeDetail(); setFormWorkOrder(item); }} /> : null}
     </div>
   );
 }

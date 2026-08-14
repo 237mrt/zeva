@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmationContext, type ConfirmationContextValue } from '../../contexts/confirmation-context';
@@ -107,9 +108,11 @@ const toastValue: ToastContextValue = {
 
 function Providers({ children }: PropsWithChildren) {
   return (
-    <ToastContext.Provider value={toastValue}>
-      <ConfirmationContext.Provider value={{ confirm }}>{children}</ConfirmationContext.Provider>
-    </ToastContext.Provider>
+    <MemoryRouter>
+      <ToastContext.Provider value={toastValue}>
+        <ConfirmationContext.Provider value={{ confirm }}>{children}</ConfirmationContext.Provider>
+      </ToastContext.Provider>
+    </MemoryRouter>
   );
 }
 
@@ -430,6 +433,7 @@ describe('WorkOrderPage', () => {
     expect(await screen.findByRole('heading', { name: 'Galatasaray Garson' })).toBeTruthy();
     expect(screen.getAllByText('125.00 TL').length).toBeGreaterThan(0);
     expect(screen.getByText('Öncelikli')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'PDF İndir' })).toBeTruthy();
   });
 
   it('mutation API hatasında formu açık tutar', async () => {

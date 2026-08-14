@@ -1,9 +1,110 @@
-import { Ban, Banknote, PlusCircle, X } from 'lucide-react';
+import { Ban, Banknote, Download, LoaderCircle, PlusCircle, X } from 'lucide-react';
+
 import { Skeleton } from '../../components/feedback/skeleton';
 import { formatBalance, formatMoney } from '../../lib/money';
+import { reportingApi } from '../reporting/reporting.api';
+import { usePdfDownload } from '../reporting/use-pdf-download';
 import { useAccountDetail } from './finance.queries';
 import type { CustomerSummary, StatementItem } from './finance.types';
-const date = (value: string) => new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-const labels: Record<StatementItem['type'], string> = { WORK_ORDER: 'İş Emri', PAYMENT: 'Tahsilat', ADJUSTMENT_DEBIT: 'Borç Düzeltmesi', ADJUSTMENT_CREDIT: 'Alacak / İndirim' };
-export function AccountDetailDialog({ customerId, onClose, onPayment, onAdjustment, onCancelAdjustment }: { customerId: string; onClose: () => void; onPayment: (customer: CustomerSummary) => void; onAdjustment: (customer: CustomerSummary) => void; onCancelAdjustment: (item: StatementItem) => void }) { const query = useAccountDetail(customerId); const data = query.data; return <div className="fixed inset-0 z-50 flex justify-end bg-black/65"><section role="dialog" aria-modal="true" aria-labelledby="account-detail-title" tabIndex={-1} autoFocus onKeyDown={(event) => event.key === 'Escape' && onClose()} className="h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] p-5 shadow-2xl sm:p-6"><header className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--zeva-accent)]">Cari hesap</p><h2 id="account-detail-title" className="mt-1 text-xl font-semibold text-white">{data?.customer.name ?? 'Hesap yükleniyor'}</h2></div><button aria-label="Cari hesap detayını kapat" onClick={onClose} className="grid size-10 place-items-center rounded-lg hover:bg-[var(--zeva-surface-hover)]"><X className="size-5" /></button></header>{query.isPending ? <div aria-label="Cari hesap yükleniyor" className="mt-5 space-y-3"><Skeleton className="h-32" /><Skeleton className="h-64" /></div> : query.isError || !data ? <p role="alert" className="mt-5 rounded-xl border border-[#5f3d3d] bg-[#261a1a] p-4 text-sm text-[#e4a0a0]">Cari hesap yüklenemedi. Lütfen tekrar deneyin.</p> : <div className="mt-5 space-y-5"><section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-4"><p className="text-sm text-[var(--zeva-text-muted)]">Cari bakiye</p><p className="mt-1 text-xl font-semibold text-white">{formatBalance(data.summary.balance)}</p><dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="İş tutarı" value={formatMoney(data.summary.workOrderTotal)} /><Metric label="Tahsilat" value={formatMoney(data.summary.paymentsTotal)} /><Metric label="Borç düzeltmesi" value={formatMoney(data.summary.debitAdjustments)} /><Metric label="Alacak / indirim" value={formatMoney(data.summary.creditAdjustments)} /></dl></section><div className="grid grid-cols-2 gap-2"><button onClick={() => onPayment(data.customer)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--zeva-accent)] px-3 text-sm font-semibold text-[#0d140f]"><Banknote className="size-4" /> Tahsilat Ekle</button><button onClick={() => onAdjustment(data.customer)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm font-semibold"><PlusCircle className="size-4" /> Cari Düzeltme</button></div><section><h3 className="text-base font-semibold text-white">Cari hareketler</h3>{data.statement.items.length ? <div className="mt-3 space-y-2">{data.statement.items.map((item) => <article key={item.id} className={`rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-4 ${item.cancelledAt ? 'opacity-60' : ''}`}><div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-[var(--zeva-accent)]">{labels[item.type]}</span>{item.cancelledAt ? <span className="rounded-full bg-[#342020] px-2 py-0.5 text-[11px] text-[#e7a3a3]">İptal Edildi</span> : null}</div><p className="mt-1 text-sm font-medium text-white">{item.description}</p><p className="mt-1 text-xs text-[var(--zeva-text-muted)]">{date(item.occurredAt)}</p></div><div className="text-right"><p className={`font-semibold ${item.credit !== '0.00' ? 'text-[#9bcaaa]' : 'text-white'}`}>{item.credit !== '0.00' ? `−${formatMoney(item.credit)}` : `+${formatMoney(item.debit)}`}</p>{item.type.startsWith('ADJUSTMENT_') && !item.cancelledAt ? <button aria-label={`Cari düzeltmeyi iptal et: ${item.description}`} onClick={() => onCancelAdjustment(item)} className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-[#dc9797] hover:bg-[#2b1d1d]"><Ban className="size-3.5" /> İptal et</button> : null}</div></div></article>)}</div> : <p className="mt-3 rounded-xl border border-dashed border-[var(--zeva-border-strong)] p-6 text-center text-sm text-[var(--zeva-text-muted)]">Henüz cari hareket yok.</p>}</section></div>}</section></div>; }
-function Metric({ label, value }: { label: string; value: string }) { return <div><dt className="text-xs text-[var(--zeva-text-muted)]">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value}</dd></div>; }
+
+const date = (value: string) =>
+  new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+
+const labels: Record<StatementItem['type'], string> = {
+  WORK_ORDER: 'İş Emri',
+  PAYMENT: 'Tahsilat',
+  ADJUSTMENT_DEBIT: 'Borç Düzeltmesi',
+  ADJUSTMENT_CREDIT: 'Alacak / İndirim',
+};
+
+interface AccountDetailDialogProps {
+  customerId: string;
+  onClose: () => void;
+  onPayment: (customer: CustomerSummary) => void;
+  onAdjustment: (customer: CustomerSummary) => void;
+  onCancelAdjustment: (item: StatementItem) => void;
+}
+
+export function AccountDetailDialog({ customerId, onClose, onPayment, onAdjustment, onCancelAdjustment }: AccountDetailDialogProps) {
+  const query = useAccountDetail(customerId);
+  const data = query.data;
+  const pdf = usePdfDownload();
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/65">
+      <section role="dialog" aria-modal="true" aria-labelledby="account-detail-title" tabIndex={-1} autoFocus onKeyDown={(event) => event.key === 'Escape' && onClose()} className="h-full w-full max-w-3xl overflow-y-auto border-l border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] p-5 shadow-2xl sm:p-6">
+        <header className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--zeva-accent)]">Cari hesap</p>
+            <h2 id="account-detail-title" className="mt-1 text-xl font-semibold text-white">{data?.customer.name ?? 'Hesap yükleniyor'}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {data ? (
+              <button type="button" disabled={pdf.pendingKey === customerId} onClick={() => void pdf.download(customerId, () => reportingApi.accountPdf(customerId))} className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-xs font-semibold disabled:opacity-50">
+                {pdf.pendingKey === customerId ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Cari Ekstre İndir
+              </button>
+            ) : null}
+            <button aria-label="Cari hesap detayını kapat" onClick={onClose} className="grid size-10 place-items-center rounded-lg hover:bg-[var(--zeva-surface-hover)]"><X className="size-5" /></button>
+          </div>
+        </header>
+
+        {query.isPending ? (
+          <div aria-label="Cari hesap yükleniyor" className="mt-5 space-y-3"><Skeleton className="h-32" /><Skeleton className="h-64" /></div>
+        ) : query.isError || !data ? (
+          <p role="alert" className="mt-5 rounded-xl border border-[#5f3d3d] bg-[#261a1a] p-4 text-sm text-[#e4a0a0]">Cari hesap yüklenemedi. Lütfen tekrar deneyin.</p>
+        ) : (
+          <div className="mt-5 space-y-5">
+            <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-4">
+              <p className="text-sm text-[var(--zeva-text-muted)]">Cari bakiye</p>
+              <p className="mt-1 text-xl font-semibold text-white">{formatBalance(data.summary.balance)}</p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Metric label="İş tutarı" value={formatMoney(data.summary.workOrderTotal)} />
+                <Metric label="Tahsilat" value={formatMoney(data.summary.paymentsTotal)} />
+                <Metric label="Borç düzeltmesi" value={formatMoney(data.summary.debitAdjustments)} />
+                <Metric label="Alacak / indirim" value={formatMoney(data.summary.creditAdjustments)} />
+              </dl>
+            </section>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => onPayment(data.customer)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[var(--zeva-accent)] px-3 text-sm font-semibold text-[#0d140f]"><Banknote className="size-4" /> Tahsilat Ekle</button>
+              <button onClick={() => onAdjustment(data.customer)} className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm font-semibold"><PlusCircle className="size-4" /> Cari Düzeltme</button>
+            </div>
+            <section>
+              <h3 className="text-base font-semibold text-white">Cari hareketler</h3>
+              {data.statement.items.length ? (
+                <div className="mt-3 space-y-2">
+                  {data.statement.items.map((item) => (
+                    <article key={item.id} className={`rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-4 ${item.cancelledAt ? 'opacity-60' : ''}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-[var(--zeva-accent)]">{labels[item.type]}</span>
+                            {item.cancelledAt ? <span className="rounded-full bg-[#342020] px-2 py-0.5 text-[11px] text-[#e7a3a3]">İptal Edildi</span> : null}
+                          </div>
+                          <p className="mt-1 text-sm font-medium text-white">{item.description}</p>
+                          <p className="mt-1 text-xs text-[var(--zeva-text-muted)]">{date(item.occurredAt)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-semibold ${item.credit !== '0.00' ? 'text-[#9bcaaa]' : 'text-white'}`}>{item.credit !== '0.00' ? `−${formatMoney(item.credit)}` : `+${formatMoney(item.debit)}`}</p>
+                          {item.type.startsWith('ADJUSTMENT_') && !item.cancelledAt ? (
+                            <button aria-label={`Cari düzeltmeyi iptal et: ${item.description}`} onClick={() => onCancelAdjustment(item)} className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-[#dc9797] hover:bg-[#2b1d1d]"><Ban className="size-3.5" /> İptal et</button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 rounded-xl border border-dashed border-[var(--zeva-border-strong)] p-6 text-center text-sm text-[var(--zeva-text-muted)]">Henüz cari hareket yok.</p>
+              )}
+            </section>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div><dt className="text-xs text-[var(--zeva-text-muted)]">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value}</dd></div>;
+}

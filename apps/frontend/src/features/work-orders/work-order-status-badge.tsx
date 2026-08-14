@@ -12,7 +12,7 @@ const statusStyles: Record<WorkOrderStatus, string> = {
 
 export function WorkOrderStatusBadge({ status }: { status: WorkOrderStatus }) {
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusStyles[status]}`}>
+    <span className={`inline-flex w-fit shrink-0 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusStyles[status]}`}>
       {workOrderStatusLabels[status]}
     </span>
   );

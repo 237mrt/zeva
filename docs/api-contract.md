@@ -507,15 +507,28 @@ Finans hata kodları: `CUSTOMER_NOT_FOUND`, `PAYMENT_NOT_FOUND`, `PAYMENT_ALREAD
 
 ### Dashboard
 
-- `GET /api/v1/dashboard/summary`
-- `GET /api/v1/dashboard/recent-work-orders`
+- `GET /api/v1/dashboard`
+
+Tek response içinde `kpis`, `metrics`, `workOrderStatuses`, ilk 5 `overdueWorkOrders` ve en fazla 8 `recentActivity` kaydı döner. Aktif iş emri `WAITING`, `IN_PROGRESS` veya `READY`; geciken iş ise `dueAt` geçmiş ve durumu `DELIVERED`, `CLOSED`, `CANCELLED` olmayan soft-delete edilmemiş kayıttır. Son hareketler yeni iş emri, aktif teslimat ve aktif tahsilat tarihlerinden birleştirilir. Para alanları canonical decimal string'dir.
 
 ### Reports
 
-- `GET /api/v1/reports/daily`
-- `GET /api/v1/reports/monthly`
-- `GET /api/v1/reports/customers/:id`
+- `GET /api/v1/reports/work-orders`
+- `GET /api/v1/reports/deliveries`
+- `GET /api/v1/reports/finance`
+- `GET /api/v1/reports/customers`
+
+Tüm raporlar zorunlu ISO datetime `from` ve `to` alır. Liste raporlarında `page` varsayılan `1`, `pageSize` varsayılan `20` ve en fazla `100` olur. İş emri raporu opsiyonel `customerId`, `type`, `status`; teslimat raporu `customerId`, `workOrderId`; müşteri raporu `q` filtrelerini destekler. İş emri raporunda silinen kayıtlar ve varsayılan görünümde iptal edilenler hariçtir. Teslimat raporu iptal audit satırlarını listeler fakat aktif teslimat/paket/adet toplamlarına katmaz. Finans response'undaki `period` seçilen aralığa, `current` bugünkü tüm açık carilere aittir. Tüm finansal toplamlar canonical decimal string'dir ve özetler backend source-of-truth'tur.
+
+### PDF çıktıları
+
 - `GET /api/v1/work-orders/:id/pdf`
+- `GET /api/v1/deliveries/:id/pdf`
+- `GET /api/v1/customer-accounts/:customerId/pdf?from=&to=`
+- `GET /api/v1/customers/:customerId/active-work-orders/pdf`
+
+Başarılı response `application/pdf` ve `Content-Disposition: attachment` döndürür. İş emri PDF'i soft-delete kaydı bulmaz; teslimat PDF'i iptal audit kaydını `İPTAL EDİLMİŞ TESLİMAT` olarak işaretleyerek üretir. Cari ekstre tarihleri opsiyoneldir, tüm seçili hareketler tarih/id sırasıyla yazılır ve memory güvenliği için 5.000 satırla sınırlanır. Müşteri eldeki işler (atölye) PDF'i müşterinin atölyede halen bekleyen/kalan aktif işlerini listeler; soft-delete, CANCELLED, CLOSED ve tamamen teslim edilmiş (kalanı sıfır) işleri hariç tutar, paket detayları ve genel özet içerir. Dosya adları kullanıcı girdisinden sanitize edilir. Tüm endpointler yalnız HttpOnly `zeva_session` cookie authentication kullanır; Bearer token kabul edilmez.
+
 
 ## Temel enumlar
 

@@ -6,6 +6,7 @@ import type { AuthService } from './modules/auth/auth.service.js';
 import type { CustomerService } from './modules/customers/customer.service.js';
 import type { OperationService } from './modules/operations/operation.service.js';
 import type { FinanceService } from './modules/finance/finance.service.js';
+import type { ReportingService } from './modules/reporting/reporting.service.js';
 import type { WorkOrderService } from './modules/work-orders/work-order.service.js';
 import { registerAuthPlugin } from './plugins/auth.js';
 import { registerErrorHandlers } from './plugins/error-handler.js';
@@ -19,6 +20,7 @@ export interface BuildAppOptions {
   workOrderService?: WorkOrderService;
   operationService?: OperationService;
   financeService?: FinanceService;
+  reportingService?: ReportingService;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -37,6 +39,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     ...(options.workOrderService ? { workOrderService: options.workOrderService } : {}),
     ...(options.operationService ? { operationService: options.operationService } : {}),
     ...(options.financeService ? { financeService: options.financeService } : {}),
+    ...(options.reportingService ? { reportingService: options.reportingService } : {}),
   });
 
   app.addHook('onClose', async () => {

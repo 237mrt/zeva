@@ -7,6 +7,8 @@ import type { CustomerService } from '../modules/customers/customer.service.js';
 import { healthRoutes } from '../modules/health/health.route.js';
 import { financeRoutes } from '../modules/finance/finance.route.js';
 import type { FinanceService } from '../modules/finance/finance.service.js';
+import { reportingRoutes } from '../modules/reporting/reporting.route.js';
+import type { ReportingService } from '../modules/reporting/reporting.service.js';
 import { operationRoutes } from '../modules/operations/operation.route.js';
 import type { OperationService } from '../modules/operations/operation.service.js';
 import { workOrderRoutes } from '../modules/work-orders/work-order.route.js';
@@ -18,6 +20,7 @@ interface ApiV1RoutesOptions {
   workOrderService?: WorkOrderService;
   operationService?: OperationService;
   financeService?: FinanceService;
+  reportingService?: ReportingService;
 }
 
 export const apiV1Routes: FastifyPluginAsync<ApiV1RoutesOptions> = async (app, options) => {
@@ -37,5 +40,8 @@ export const apiV1Routes: FastifyPluginAsync<ApiV1RoutesOptions> = async (app, o
   });
   await app.register(financeRoutes, {
     ...(options.financeService ? { service: options.financeService } : {}),
+  });
+  await app.register(reportingRoutes, {
+    ...(options.reportingService ? { service: options.reportingService } : {}),
   });
 };

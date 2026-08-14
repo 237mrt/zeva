@@ -1,4 +1,4 @@
-import { Pencil, X } from 'lucide-react';
+import { Download, LoaderCircle, Pencil, X } from 'lucide-react';
 
 import { Skeleton } from '../../components/feedback/skeleton';
 import { usePackageList } from '../operations/operation.queries';
@@ -6,6 +6,8 @@ import { workOrderTypeLabels } from '../customers/customer.types';
 import { useWorkOrderDetail } from './work-order.queries';
 import { WorkOrderStatusBadge } from './work-order-status-badge';
 import type { WorkOrder } from './work-order.types';
+import { reportingApi } from '../reporting/reporting.api';
+import { usePdfDownload } from '../reporting/use-pdf-download';
 
 interface WorkOrderDetailDialogProps {
   workOrderId: string;
@@ -44,6 +46,7 @@ export function WorkOrderDetailDialog({
   const detailQuery = useWorkOrderDetail(workOrderId);
   const workOrder = detailQuery.data;
   const packageQuery = usePackageList(workOrderId);
+  const pdf = usePdfDownload();
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/65" role="presentation">
@@ -66,6 +69,7 @@ export function WorkOrderDetailDialog({
             </h2>
           </div>
           <div className="flex gap-2">
+            {workOrder ? <button type="button" disabled={pdf.pendingKey === workOrder.id} onClick={() => void pdf.download(workOrder.id, () => reportingApi.workOrderPdf(workOrder.id))} className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] disabled:opacity-50">{pdf.pendingKey === workOrder.id ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />} PDF İndir</button> : null}
             {workOrder ? (
               <button type="button" onClick={() => onEdit(workOrder)} className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]">
                 <Pencil className="size-4" aria-hidden="true" /> Düzenle

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight, LoaderCircle, Pencil, Save, X } from 'lucide-react';
+import { ArrowRight, Download, LoaderCircle, Pencil, Save, X } from 'lucide-react';
 import { useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,6 +9,8 @@ import { useToast } from '../../hooks/use-toast';
 import { formatBalance, formatMoney } from '../../lib/money';
 import { useNavigate } from 'react-router-dom';
 import { useAccountDetail } from '../finance/finance.queries';
+import { reportingApi } from '../reporting/reporting.api';
+import { usePdfDownload } from '../reporting/use-pdf-download';
 import {
   useCustomerDetail,
   useCustomerPrices,
@@ -62,6 +64,7 @@ function formatDate(value: string): string {
 export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDetailDialogProps) {
   const toast = useToast();
   const navigate = useNavigate();
+  const pdf = usePdfDownload();
   const customerQuery = useCustomerDetail(customerId);
   const pricesQuery = useCustomerPrices(customerId);
   const accountQuery = useAccountDetail(customerId, { page: 1, pageSize: 1 });
@@ -106,7 +109,7 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
         }}
         className="h-full w-full max-w-2xl overflow-y-auto border-l border-[var(--zeva-border-strong)] bg-[var(--zeva-surface)] shadow-2xl animate-[panel-in_180ms_ease-out]"
       >
-        <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--zeva-border)] bg-[var(--zeva-surface)] px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-10 flex flex-wrap items-start justify-between gap-3 border-b border-[var(--zeva-border)] bg-[var(--zeva-surface)] px-5 py-4 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--zeva-accent)]">
               Müşteri detayı
@@ -115,15 +118,34 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
               {customer?.name ?? 'Müşteri yükleniyor'}
             </h2>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {customer ? (
-              <button
-                type="button"
-                onClick={() => onEdit(customer)}
-                className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]"
-              >
-                <Pencil className="size-4" aria-hidden="true" /> Düzenle
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={pdf.pendingKey === `${customerId}:active-work-orders`}
+                  onClick={() =>
+                    void pdf.download(`${customerId}:active-work-orders`, () =>
+                      reportingApi.activeWorkOrdersPdf(customerId),
+                    )
+                  }
+                  className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)] disabled:opacity-50"
+                >
+                  {pdf.pendingKey === `${customerId}:active-work-orders` ? (
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Download className="size-4" aria-hidden="true" />
+                  )}
+                  Eldeki İşleri İndir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit(customer)}
+                  className="flex h-9 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]"
+                >
+                  <Pencil className="size-4" aria-hidden="true" /> Düzenle
+                </button>
+              </>
             ) : null}
             <button
               type="button"
@@ -158,11 +180,56 @@ export function CustomerDetailDialog({ customerId, onClose, onEdit }: CustomerDe
           )}
 
           <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div><h3 className="text-base font-semibold text-[#e6ebe7]">Cari hesap</h3><p className="mt-1 text-lg font-semibold text-white">{accountQuery.isPending ? 'Yükleniyor…' : accountQuery.data ? formatBalance(accountQuery.data.summary.balance) : 'Bilgi yüklenemedi'}</p></div>
-              <button type="button" onClick={() => { onClose(); void navigate(`/muhasebe?customerId=${customerId}`); }} className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]">Cari hesabı görüntüle <ArrowRight className="size-4" /></button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-[#e6ebe7]">Cari hesap</h3>
+                <p className="mt-1 text-lg font-semibold text-white">
+                  {accountQuery.isPending
+                    ? 'Yükleniyor…'
+                    : accountQuery.data
+                      ? formatBalance(accountQuery.data.summary.balance)
+                      : 'Bilgi yüklenemedi'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={pdf.pendingKey === `${customerId}:account`}
+                  onClick={() =>
+                    void pdf.download(`${customerId}:account`, () =>
+                      reportingApi.accountPdf(customerId),
+                    )
+                  }
+                  className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)] disabled:opacity-50"
+                >
+                  {pdf.pendingKey === `${customerId}:account` ? (
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Download className="size-4" aria-hidden="true" />
+                  )}
+                  Cari Ekstre İndir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    void navigate(`/muhasebe?customerId=${customerId}`);
+                  }}
+                  className="flex min-h-10 items-center gap-2 rounded-lg border border-[var(--zeva-border-strong)] px-3 text-sm text-[#d3d9d4] hover:bg-[var(--zeva-surface-hover)]"
+                >
+                  Cari hesabı görüntüle <ArrowRight className="size-4" />
+                </button>
+              </div>
             </div>
-            {accountQuery.data ? <dl className="mt-4 grid grid-cols-2 gap-3"><Detail label="Toplam tahsilat" value={formatMoney(accountQuery.data.summary.paymentsTotal)} /><Detail label="Son ödeme" value={accountQuery.data.summary.lastPaymentAt ? formatDate(accountQuery.data.summary.lastPaymentAt) : '—'} /></dl> : null}
+            {accountQuery.data ? (
+              <dl className="mt-4 grid grid-cols-2 gap-3">
+                <Detail label="Toplam tahsilat" value={formatMoney(accountQuery.data.summary.paymentsTotal)} />
+                <Detail
+                  label="Son ödeme"
+                  value={accountQuery.data.summary.lastPaymentAt ? formatDate(accountQuery.data.summary.lastPaymentAt) : '—'}
+                />
+              </dl>
+            ) : null}
           </section>
 
           <section className="rounded-xl border border-[var(--zeva-border)] bg-[#111512] p-5">
