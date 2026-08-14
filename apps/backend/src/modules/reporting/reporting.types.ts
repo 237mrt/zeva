@@ -81,6 +81,38 @@ export interface AccountStatementPdfSource {
   truncated: boolean;
 }
 
+export interface CustomerActiveWorkOrderItem {
+  id: string;
+  productName: string;
+  type: WorkOrderType;
+  status: WorkOrderStatus;
+  totalQuantity: number;
+  deliveredQuantity: number;
+  remainingQuantity: number;
+  sackCount: number;
+  boxCount: number;
+  packagedQuantity: number;
+  receivedAt: Date;
+  dueAt: Date | null;
+  notes: string | null;
+  packages: Array<{ sequenceNo: number; type: PackageType; quantity: number; delivered: boolean }>;
+}
+
+export interface CustomerActiveWorkOrdersPdfSource {
+  customer: ReportCustomer;
+  generatedAt: Date;
+  items: CustomerActiveWorkOrderItem[];
+  summary: {
+    totalWorkOrders: number;
+    totalQuantity: number;
+    totalDeliveredQuantity: number;
+    totalRemainingQuantity: number;
+    totalSacks: number;
+    totalBoxes: number;
+    totalPackagedQuantity: number;
+  };
+}
+
 export interface PdfResult { buffer: Buffer; filename: string }
 
 export interface ReportingRepository {
@@ -92,4 +124,5 @@ export interface ReportingRepository {
   findWorkOrderForPdf(id: string): Promise<WorkOrderPdfSource | null>;
   findDeliveryForPdf(id: string): Promise<DeliveryPdfSource | null>;
   getAccountStatementForPdf(customerId: string, range: { from?: Date | undefined; to?: Date | undefined }, limit: number): Promise<AccountStatementPdfSource | null>;
+  getCustomerActiveWorkOrdersForPdf(customerId: string): Promise<CustomerActiveWorkOrdersPdfSource | null>;
 }

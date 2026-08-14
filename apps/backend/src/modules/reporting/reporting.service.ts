@@ -1,6 +1,12 @@
 import { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../shared/errors/app-error.js';
-import { renderAccountStatementPdf, renderDeliveryPdf, renderWorkOrderPdf, sanitizePdfFilename } from './pdf/pdf-renderer.js';
+import {
+  renderAccountStatementPdf,
+  renderCustomerActiveWorkOrdersPdf,
+  renderDeliveryPdf,
+  renderWorkOrderPdf,
+  sanitizePdfFilename,
+} from './pdf/pdf-renderer.js';
 import { mapCustomerReportItem, mapDeliveryReportItem, mapWorkOrderReportItem } from './reporting.mapper.js';
 import { reportingRepository } from './reporting.repository.js';
 import type { CustomerReportQuery, DeliveryReportQuery, FinanceReportQuery, ReportingRepository, WorkOrderReportQuery } from './reporting.types.js';
@@ -46,6 +52,14 @@ export class ReportingService {
   public async workOrderPdf(id: string) { const source = await this.repository.findWorkOrderForPdf(id); if (!source) throw new AppError(404, 'WORK_ORDER_NOT_FOUND', 'İş emri bulunamadı.'); return { buffer: await renderWorkOrderPdf(source), filename: `zeva-is-emri-${sanitizePdfFilename(source.id.slice(-10))}.pdf` }; }
   public async deliveryPdf(id: string) { const source = await this.repository.findDeliveryForPdf(id); if (!source) throw new AppError(404, 'DELIVERY_NOT_FOUND', 'Teslimat bulunamadı.'); const day = source.deliveredAt.toISOString().slice(0, 10); return { buffer: await renderDeliveryPdf(source), filename: `zeva-teslimat-${day}-${sanitizePdfFilename(source.id.slice(-8))}.pdf` }; }
   public async accountStatementPdf(customerId: string, range: { from?: Date | undefined; to?: Date | undefined }) { const source = await this.repository.getAccountStatementForPdf(customerId, range, 5_000); if (!source) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.'); const balance = accountBalance(source).toFixed(2); return { buffer: await renderAccountStatementPdf({ ...source, balance, rangeLabel: rangeLabel(range.from, range.to) }), filename: `zeva-cari-ekstre-${sanitizePdfFilename(source.customer.name)}.pdf` }; }
+  public async customerActiveWorkOrdersPdf(customerId: string) {
+    const source = await this.repository.getCustomerActiveWorkOrdersForPdf(customerId);
+    if (!source) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Müşteri bulunamadı.');
+    return {
+      buffer: await renderCustomerActiveWorkOrdersPdf(source),
+      filename: `zeva-eldeki-isler-${sanitizePdfFilename(source.customer.name)}.pdf`,
+    };
+  }
 }
 
 export const reportingService = new ReportingService();

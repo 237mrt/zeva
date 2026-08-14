@@ -1,7 +1,7 @@
 import type { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../lib/prisma.js';
 import type {
-  AccountStatementPdfSource, CustomerReportItem, CustomerReportQuery, CustomerReportSource,
+  AccountStatementPdfSource, CustomerActiveWorkOrdersPdfSource, CustomerReportItem, CustomerReportQuery, CustomerReportSource,
   DashboardSource, DeliveryPdfSource, DeliveryReportItem, DeliveryReportQuery, DeliveryReportSource,
   FinanceReportQuery, FinanceReportSource, ReportingRepository,
   WorkOrderPdfSource, WorkOrderReportItem, WorkOrderReportQuery, WorkOrderReportSource,
@@ -189,6 +189,89 @@ export class PrismaReportingRepository implements ReportingRepository {
       ...adjustments.map((item) => ({ id: `ADJUSTMENT:${item.id}`, type: item.type === 'DEBIT' ? 'ADJUSTMENT_DEBIT' as const : 'ADJUSTMENT_CREDIT' as const, occurredAt: item.occurredAt, description: item.description, amount: item.amount.toFixed(2), cancelledAt: item.cancelledAt })),
     ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime() || b.id.localeCompare(a.id));
     return { customer, workOrderTotal: money(workTotal._sum.totalAmount), paymentsTotal: money(paymentTotal._sum.amount), debitAdjustments: money(adjustmentTotals.find((item) => item.type === 'DEBIT')?._sum.amount), creditAdjustments: money(adjustmentTotals.find((item) => item.type === 'CREDIT')?._sum.amount), items: rows.slice(0, limit), truncated: rows.length > limit };
+  }
+
+  public async getCustomerActiveWorkOrdersForPdf(customerId: string): Promise<CustomerActiveWorkOrdersPdfSource | null> {
+    const customer = await prisma.customer.findFirst({ where: { id: customerId, deletedAt: null }, select: customerSelect });
+    if (!customer) return null;
+
+    const workOrders = await prisma.workOrder.findMany({
+      where: {
+        customerId,
+        deletedAt: null,
+        status: { notIn: ['CANCELLED', 'CLOSED'] },
+      },
+      select: {
+        id: true,
+        productName: true,
+        type: true,
+        status: true,
+        totalQuantity: true,
+        receivedAt: true,
+        dueAt: true,
+        notes: true,
+        packages: {
+          where: { deletedAt: null },
+          select: {
+            sequenceNo: true,
+            type: true,
+            quantity: true,
+            deliveryId: true,
+          },
+          orderBy: { sequenceNo: 'asc' },
+        },
+      },
+      orderBy: [{ receivedAt: 'asc' }, { id: 'asc' }],
+    });
+
+    const items = workOrders.flatMap((wo) => {
+      const deliveredQuantity = wo.packages.filter((p) => p.deliveryId !== null).reduce((sum, p) => sum + p.quantity, 0);
+      const remainingQuantity = Math.max(0, wo.totalQuantity - deliveredQuantity);
+      if (remainingQuantity <= 0) return [];
+
+      const sackCount = wo.packages.filter((p) => p.type === 'SACK').length;
+      const boxCount = wo.packages.filter((p) => p.type === 'BOX').length;
+      const packagedQuantity = wo.packages.reduce((sum, p) => sum + p.quantity, 0);
+
+      return [{
+        id: wo.id,
+        productName: wo.productName,
+        type: wo.type,
+        status: wo.status,
+        totalQuantity: wo.totalQuantity,
+        deliveredQuantity,
+        remainingQuantity,
+        sackCount,
+        boxCount,
+        packagedQuantity,
+        receivedAt: wo.receivedAt,
+        dueAt: wo.dueAt,
+        notes: wo.notes,
+        packages: wo.packages.map((p) => ({
+          sequenceNo: p.sequenceNo,
+          type: p.type,
+          quantity: p.quantity,
+          delivered: Boolean(p.deliveryId),
+        })),
+      }];
+    });
+
+    const summary = {
+      totalWorkOrders: items.length,
+      totalQuantity: items.reduce((sum, item) => sum + item.totalQuantity, 0),
+      totalDeliveredQuantity: items.reduce((sum, item) => sum + item.deliveredQuantity, 0),
+      totalRemainingQuantity: items.reduce((sum, item) => sum + item.remainingQuantity, 0),
+      totalSacks: items.reduce((sum, item) => sum + item.sackCount, 0),
+      totalBoxes: items.reduce((sum, item) => sum + item.boxCount, 0),
+      totalPackagedQuantity: items.reduce((sum, item) => sum + item.packagedQuantity, 0),
+    };
+
+    return {
+      customer,
+      generatedAt: new Date(),
+      items,
+      summary,
+    };
   }
 }
 

@@ -19,7 +19,14 @@ import {
 } from './customer.queries';
 import type { Customer, CustomerListData } from './customer.types';
 import { useAccountDetail } from '../finance/finance.queries';
+import { reportingApi } from '../reporting/reporting.api';
 
+vi.mock('../reporting/reporting.api', () => ({
+  reportingApi: {
+    accountPdf: vi.fn(() => Promise.resolve({ blob: new Blob(['%PDF']), filename: 'ekstre.pdf' })),
+    activeWorkOrdersPdf: vi.fn(() => Promise.resolve({ blob: new Blob(['%PDF']), filename: 'eldeki-isler.pdf' })),
+  },
+}));
 vi.mock('../finance/finance.queries', () => ({ useAccountDetail: vi.fn() }));
 
 vi.mock('./customer.queries', () => ({
@@ -418,5 +425,22 @@ describe('CustomerPage', () => {
         ],
       });
     });
+  });
+
+  it('müşteri detayından eldeki işler ve cari ekstre PDF indirme işlemlerini tetikler', async () => {
+    render(
+      <Providers>
+        <CustomerDetailDialog customerId="customer-1" onClose={vi.fn()} onEdit={vi.fn()} />
+      </Providers>,
+    );
+
+    const activeWoButton = await screen.findByRole('button', { name: /Eldeki İşleri İndir/ });
+    const accountPdfButton = screen.getByRole('button', { name: /Cari Ekstre İndir/ });
+
+    fireEvent.click(activeWoButton);
+    await waitFor(() => expect(reportingApi.activeWorkOrdersPdf).toHaveBeenCalledWith('customer-1'));
+
+    fireEvent.click(accountPdfButton);
+    await waitFor(() => expect(reportingApi.accountPdf).toHaveBeenCalledWith('customer-1'));
   });
 });

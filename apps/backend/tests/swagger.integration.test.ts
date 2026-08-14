@@ -64,6 +64,7 @@ describe('Swagger integration', () => {
         '/api/v1/work-orders/{id}/pdf': { get: {} },
         '/api/v1/deliveries/{id}/pdf': { get: {} },
         '/api/v1/customer-accounts/{customerId}/pdf': { get: {} },
+        '/api/v1/customers/{customerId}/active-work-orders/pdf': { get: {} },
       },
       components: {
         securitySchemes: {
@@ -101,6 +102,7 @@ describe('Swagger integration', () => {
       ['/api/v1/work-orders/{id}/pdf', 'get'],
       ['/api/v1/deliveries/{id}/pdf', 'get'],
       ['/api/v1/customer-accounts/{customerId}/pdf', 'get'],
+      ['/api/v1/customers/{customerId}/active-work-orders/pdf', 'get'],
     ] as const) {
       expect(document).toHaveProperty(['paths', path, method, 'security'], [{ cookieAuth: [] }]);
     }
@@ -135,5 +137,6 @@ describe('Swagger integration', () => {
       [{ cookieAuth: [] }],
     );
     expect(document).toHaveProperty(['paths', '/api/v1/work-orders/{id}/pdf', 'get', 'responses', '200', 'content', 'application/pdf']);
+    expect(document).toHaveProperty(['paths', '/api/v1/customers/{customerId}/active-work-orders/pdf', 'get', 'responses', '200', 'content', 'application/pdf']);
   });
 });

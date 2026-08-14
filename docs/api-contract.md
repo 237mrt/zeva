@@ -525,8 +525,10 @@ Tüm raporlar zorunlu ISO datetime `from` ve `to` alır. Liste raporlarında `pa
 - `GET /api/v1/work-orders/:id/pdf`
 - `GET /api/v1/deliveries/:id/pdf`
 - `GET /api/v1/customer-accounts/:customerId/pdf?from=&to=`
+- `GET /api/v1/customers/:customerId/active-work-orders/pdf`
 
-Başarılı response `application/pdf` ve `Content-Disposition: attachment` döndürür. İş emri PDF'i soft-delete kaydı bulmaz; teslimat PDF'i iptal audit kaydını `İPTAL EDİLMİŞ TESLİMAT` olarak işaretleyerek üretir. Cari ekstre tarihleri opsiyoneldir, tüm seçili hareketler tarih/id sırasıyla yazılır ve memory güvenliği için 5.000 satırla sınırlanır. Dosya adları kullanıcı girdisinden sanitize edilir. Tüm endpointler yalnız HttpOnly `zeva_session` cookie authentication kullanır; Bearer token kabul edilmez.
+Başarılı response `application/pdf` ve `Content-Disposition: attachment` döndürür. İş emri PDF'i soft-delete kaydı bulmaz; teslimat PDF'i iptal audit kaydını `İPTAL EDİLMİŞ TESLİMAT` olarak işaretleyerek üretir. Cari ekstre tarihleri opsiyoneldir, tüm seçili hareketler tarih/id sırasıyla yazılır ve memory güvenliği için 5.000 satırla sınırlanır. Müşteri eldeki işler (atölye) PDF'i müşterinin atölyede halen bekleyen/kalan aktif işlerini listeler; soft-delete, CANCELLED, CLOSED ve tamamen teslim edilmiş (kalanı sıfır) işleri hariç tutar, paket detayları ve genel özet içerir. Dosya adları kullanıcı girdisinden sanitize edilir. Tüm endpointler yalnız HttpOnly `zeva_session` cookie authentication kullanır; Bearer token kabul edilmez.
+
 
 ## Temel enumlar
 

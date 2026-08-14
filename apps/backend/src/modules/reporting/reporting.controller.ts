@@ -13,4 +13,5 @@ export function createReportingController(service: ReportingService) { return {
   workOrderPdf: async (request: FastifyRequest, reply: FastifyReply) => { const { id } = reportingIdParamsSchema.parse(request.params); return pdf(reply, await service.workOrderPdf(id)); },
   deliveryPdf: async (request: FastifyRequest, reply: FastifyReply) => { const { id } = reportingIdParamsSchema.parse(request.params); return pdf(reply, await service.deliveryPdf(id)); },
   accountPdf: async (request: FastifyRequest, reply: FastifyReply) => { const { customerId } = accountPdfParamsSchema.parse(request.params); const range = accountPdfQuerySchema.parse(request.query); return pdf(reply, await service.accountStatementPdf(customerId, range)); },
+  customerActiveWorkOrdersPdf: async (request: FastifyRequest, reply: FastifyReply) => { const { customerId } = accountPdfParamsSchema.parse(request.params); return pdf(reply, await service.customerActiveWorkOrdersPdf(customerId)); },
 }; }

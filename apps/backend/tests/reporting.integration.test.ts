@@ -9,7 +9,12 @@ import { ReportingService } from '../src/modules/reporting/reporting.service.js'
 import type { ErrorResponse, SuccessResponse } from '../src/shared/http/api-response.js';
 import { InMemoryAuthRepository } from './helpers/in-memory-auth-repository.js';
 import { InMemoryReportingRepository } from './helpers/in-memory-reporting-repository.js';
-import { renderAccountStatementPdf, renderDeliveryPdf, renderWorkOrderPdf } from '../src/modules/reporting/pdf/pdf-renderer.js';
+import {
+  renderAccountStatementPdf,
+  renderCustomerActiveWorkOrdersPdf,
+  renderDeliveryPdf,
+  renderWorkOrderPdf,
+} from '../src/modules/reporting/pdf/pdf-renderer.js';
 
 const from = '2026-08-01T00:00:00.000Z';
 const to = '2026-08-31T23:59:59.999Z';
@@ -30,7 +35,17 @@ describe('Reporting integration', () => {
   const get = (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
 
   it('tüm dashboard, rapor ve PDF endpointlerini cookie oturumu olmadan 401 ile kapatır', async () => {
-    const urls = ['/api/v1/dashboard', `/api/v1/reports/work-orders?${range}`, `/api/v1/reports/deliveries?${range}`, `/api/v1/reports/finance?${range}`, `/api/v1/reports/customers?${range}`, '/api/v1/work-orders/wo-1/pdf', '/api/v1/deliveries/delivery-1/pdf', '/api/v1/customer-accounts/alpha/pdf'];
+    const urls = [
+      '/api/v1/dashboard',
+      `/api/v1/reports/work-orders?${range}`,
+      `/api/v1/reports/deliveries?${range}`,
+      `/api/v1/reports/finance?${range}`,
+      `/api/v1/reports/customers?${range}`,
+      '/api/v1/work-orders/wo-1/pdf',
+      '/api/v1/deliveries/delivery-1/pdf',
+      '/api/v1/customer-accounts/alpha/pdf',
+      '/api/v1/customers/alpha/active-work-orders/pdf',
+    ];
     for (const url of urls) { const response = await app.inject({ method: 'GET', url }); expect(response.statusCode).toBe(401); expect(response.json<ErrorResponse>().error.code).toBe('UNAUTHORIZED'); }
   });
 
@@ -92,12 +107,31 @@ describe('Reporting integration', () => {
     expect(response.statusCode).toBe(200); expect(response.headers['content-disposition']).toBe('attachment; filename="zeva-cari-ekstre-ciglik-alpha-tekstil.pdf"'); expect(response.rawPayload.subarray(0, 4).toString()).toBe('%PDF'); expect(repository.lastAccountRange).toEqual({ from: new Date(from), to: new Date(to) }); expect(repository.lastAccountLimit).toBe(5000);
   });
 
-  it('olmayan domain kayıtlarının PDF isteklerini 404 ile yanıtlar', async () => {
-    repository.workOrderPdfSource = null; repository.deliveryPdfSource = null; repository.accountSource = null;
-    for (const url of ['/api/v1/work-orders/missing/pdf', '/api/v1/deliveries/missing/pdf', '/api/v1/customer-accounts/missing/pdf']) expect((await get(url)).statusCode).toBe(404);
+  it('müşteri eldeki işler (atölye) PDFini güvenli dosya adı ve Türkçe içerikle üretir', async () => {
+    const response = await get('/api/v1/customers/alpha/active-work-orders/pdf');
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.headers['content-disposition']).toBe('attachment; filename="zeva-eldeki-isler-ciglik-alpha-tekstil.pdf"');
+    expect(response.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+    expect(response.rawPayload.length).toBeGreaterThan(1000);
   });
 
-  it('Türkçe içerikli (Çağrı Şen Tekstil, Ütü Şişme Çocuk Önlüğü, İşlem öğleden önce tamamlanacak) İş Emri, Teslimat ve Cari Ekstre PDFlerini sorunsuz üretir', async () => {
+  it('olmayan domain kayıtlarının PDF isteklerini 404 ile yanıtlar', async () => {
+    repository.workOrderPdfSource = null;
+    repository.deliveryPdfSource = null;
+    repository.accountSource = null;
+    repository.activeWorkOrdersPdfSource = null;
+    for (const url of [
+      '/api/v1/work-orders/missing/pdf',
+      '/api/v1/deliveries/missing/pdf',
+      '/api/v1/customer-accounts/missing/pdf',
+      '/api/v1/customers/missing/active-work-orders/pdf',
+    ]) {
+      expect((await get(url)).statusCode).toBe(404);
+    }
+  });
+
+  it('Türkçe içerikli (Çağrı Şen Tekstil, Ütü Şişme Çocuk Önlüğü, İşlem öğleden önce tamamlanacak) İş Emri, Teslimat, Cari Ekstre ve Eldeki İşler PDFlerini sorunsuz üretir', async () => {
     repository.workOrderPdfSource = {
       id: 'wo-tr-test',
       customer: { id: 'c1', name: 'Çağrı Şen Tekstil' },
@@ -150,6 +184,42 @@ describe('Reporting integration', () => {
     expect(accountResponse.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
     expect(accountResponse.rawPayload.length).toBeGreaterThan(1000);
 
+    repository.activeWorkOrdersPdfSource = {
+      customer: { id: 'c1', name: 'Çağrı Şen Tekstil' },
+      generatedAt: now,
+      items: [
+        {
+          id: 'wo-tr-test',
+          productName: 'Ütü Şişme Çocuk Önlüğü',
+          type: 'IRONING_PACKAGING',
+          status: 'READY',
+          totalQuantity: 1000,
+          deliveredQuantity: 0,
+          remainingQuantity: 1000,
+          sackCount: 1,
+          boxCount: 0,
+          packagedQuantity: 1000,
+          receivedAt: now,
+          dueAt: now,
+          notes: 'İşlem öğleden önce tamamlanacak.',
+          packages: [{ sequenceNo: 1, type: 'SACK', quantity: 1000, delivered: false }],
+        },
+      ],
+      summary: {
+        totalWorkOrders: 1,
+        totalQuantity: 1000,
+        totalDeliveredQuantity: 0,
+        totalRemainingQuantity: 1000,
+        totalSacks: 1,
+        totalBoxes: 0,
+        totalPackagedQuantity: 1000,
+      },
+    };
+    const activeWoResponse = await get('/api/v1/customers/c1/active-work-orders/pdf');
+    expect(activeWoResponse.statusCode).toBe(200);
+    expect(activeWoResponse.rawPayload.subarray(0, 4).toString()).toBe('%PDF');
+    expect(activeWoResponse.rawPayload.length).toBeGreaterThan(1000);
+
     const woBuffer = await renderWorkOrderPdf(repository.workOrderPdfSource);
     expect(woBuffer.subarray(0, 4).toString()).toBe('%PDF');
 
@@ -162,7 +232,128 @@ describe('Reporting integration', () => {
       rangeLabel: 'Ağustos 2026',
     });
     expect(accBuffer.subarray(0, 4).toString()).toBe('%PDF');
+
+    const activeWoBuffer = await renderCustomerActiveWorkOrdersPdf(repository.activeWorkOrdersPdfSource);
+    expect(activeWoBuffer.subarray(0, 4).toString()).toBe('%PDF');
   }, 30_000);
+
+  it('çok satırlı ve çok sayfalı veri setlerinde sayfa taşma (page-break) algoritmasını hatasız işletir', async () => {
+    // 50 satırlı eldeki işler listesi
+    const manyWorkOrders = Array.from({ length: 50 }, (_, i) => ({
+      id: `wo-large-${i + 1}`,
+      productName: `Özel Tasarım Uzun İsimli Penye Kumaş İş Önlüğü Modeli #${i + 1} - Çoklu Renk Seçenekli Özel Seri`,
+      type: 'IRONING_PACKAGING' as const,
+      status: 'IN_PROGRESS' as const,
+      totalQuantity: 1000 + i * 100,
+      deliveredQuantity: i * 50,
+      remainingQuantity: 1000 + i * 50,
+      sackCount: 4,
+      boxCount: 2,
+      packagedQuantity: 1000,
+      receivedAt: now,
+      dueAt: now,
+      notes: i % 5 === 0 ? 'Bu iş emri için özel müşteri paketleme talimatı bulunmaktadır. Lütfen dikkatli paketleyiniz.' : null,
+      packages: [
+        { sequenceNo: 1, type: 'SACK' as const, quantity: 500, delivered: true },
+        { sequenceNo: 2, type: 'SACK' as const, quantity: 500, delivered: false },
+      ],
+    }));
+
+    const largeActiveSource = {
+      customer: { id: 'c-large', name: 'Atlas & Büyük Uluslararası Tekstil Sanayi ve Ticaret Anonim Şirketi' },
+      generatedAt: now,
+      items: manyWorkOrders,
+      summary: {
+        totalWorkOrders: 50,
+        totalQuantity: 100000,
+        totalDeliveredQuantity: 25000,
+        totalRemainingQuantity: 75000,
+        totalSacks: 200,
+        totalBoxes: 100,
+        totalPackagedQuantity: 50000,
+      },
+    };
+
+    const multiPageActivePdf = await renderCustomerActiveWorkOrdersPdf(largeActiveSource);
+    expect(multiPageActivePdf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(multiPageActivePdf.length).toBeGreaterThan(15000);
+
+    // 60 satırlı cari ekstre
+    const manyStatements = Array.from({ length: 60 }, (_, i) => ({
+      id: `stmt-${i + 1}`,
+      type: i % 2 === 0 ? 'WORK_ORDER' : 'PAYMENT',
+      occurredAt: now,
+      description: `Açıklama ${i + 1} - Uzun işlem detayı ve banka transfer / iş emri referans numarası REF-${i * 12345}`,
+      amount: `${(i + 1) * 100}.50`,
+      cancelledAt: i % 10 === 0 ? now : null,
+    }));
+
+    const largeAccountSource = {
+      customer: { id: 'c-large', name: 'Atlas & Büyük Uluslararası Tekstil Sanayi ve Ticaret Anonim Şirketi' },
+      workOrderTotal: '500000.00',
+      paymentsTotal: '300000.00',
+      debitAdjustments: '10000.00',
+      creditAdjustments: '5000.00',
+      balance: '205000.00 TL',
+      rangeLabel: 'Ocak 2026 – Aralık 2026',
+      truncated: false,
+      items: manyStatements,
+    };
+
+    const multiPageAccountPdf = await renderAccountStatementPdf(largeAccountSource);
+    expect(multiPageAccountPdf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(multiPageAccountPdf.length).toBeGreaterThan(15000);
+
+    // 50 paketli teslimat
+    const manyPackages = Array.from({ length: 50 }, (_, i) => ({
+      workOrderId: `wo-${Math.floor(i / 5) + 1}`,
+      productName: `İş Emri Ürün Modeli #${Math.floor(i / 5) + 1} - Kalite Kontrollü Ütü Paketleme`,
+      sequenceNo: (i % 5) + 1,
+      type: i % 3 === 0 ? 'BOX' : 'SACK',
+      quantity: 250,
+    }));
+
+    const largeDeliverySource = {
+      id: 'del-large-test',
+      customer: { id: 'c-large', name: 'Atlas & Büyük Uluslararası Tekstil Sanayi ve Ticaret Anonim Şirketi' },
+      deliveredAt: now,
+      receiverName: 'Ahmet Yılmaz (Depo ve Sevkiyat Sorumlusu)',
+      notes: 'Tüm teslimat partisi tek seferde teslim edilmiştir. İrsaliye numarası: İRS-2026-999888.',
+      cancelledAt: null,
+      packages: manyPackages,
+    };
+
+    const multiPageDeliveryPdf = await renderDeliveryPdf(largeDeliverySource);
+    expect(multiPageDeliveryPdf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(multiPageDeliveryPdf.length).toBeGreaterThan(10000);
+
+    // 50 paketli iş emri
+    const manyWoPackages = Array.from({ length: 50 }, (_, i) => ({
+      sequenceNo: i + 1,
+      type: i % 2 === 0 ? 'SACK' : 'BOX',
+      quantity: 100,
+      delivered: i < 20,
+    }));
+
+    const largeWoSource = {
+      id: 'wo-large-test',
+      customer: { id: 'c-large', name: 'Atlas & Büyük Uluslararası Tekstil Sanayi ve Ticaret Anonim Şirketi' },
+      productName: 'Büyük Parti Sipariş - 50 Çuvallık Özel İhracat Ürünü',
+      type: 'IRONING_PACKAGING' as const,
+      status: 'IN_PROGRESS' as const,
+      totalQuantity: 5000,
+      unitPrice: '12.00',
+      totalAmount: '60000.00',
+      receivedAt: now,
+      dueAt: now,
+      notes: 'Bu iş emri için 50 paket hazırlanacaktır. Her paket etiketlenmeli ve barkodlanmalıdır.',
+      packages: manyWoPackages,
+    };
+
+    const multiPageWoPdf = await renderWorkOrderPdf(largeWoSource);
+    expect(multiPageWoPdf.subarray(0, 4).toString()).toBe('%PDF');
+    expect(multiPageWoPdf.length).toBeGreaterThan(10000);
+  });
 
   it('font dosyalarının varlığını ve geçerli TTF/OTF magic headerını doğrular', () => {
     const fontFiles = ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf'];
@@ -181,4 +372,3 @@ describe('Reporting integration', () => {
     }
   });
 });
-

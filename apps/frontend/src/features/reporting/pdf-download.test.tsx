@@ -7,21 +7,21 @@ import { reportingApi } from './reporting.api';
 import { usePdfDownload } from './use-pdf-download';
 
 vi.mock('../../lib/file-download', () => ({ saveBlob: vi.fn() }));
-vi.mock('./reporting.api', () => ({ reportingApi: { workOrderPdf: vi.fn(), deliveryPdf: vi.fn(), accountPdf: vi.fn() } }));
+vi.mock('./reporting.api', () => ({ reportingApi: { workOrderPdf: vi.fn(), deliveryPdf: vi.fn(), accountPdf: vi.fn(), activeWorkOrdersPdf: vi.fn() } }));
 const toast: ToastContextValue = { show: vi.fn(() => 'id'), success: vi.fn(() => 'id'), error: vi.fn(() => 'id'), warning: vi.fn(() => 'id'), info: vi.fn(() => 'id'), dismiss: vi.fn() };
 const result = (filename: string) => Promise.resolve({ blob: new Blob(['%PDF']), filename });
 function Providers({ children }: PropsWithChildren) { return <ToastContext.Provider value={toast}>{children}</ToastContext.Provider>; }
 function Harness() {
   const pdf = usePdfDownload();
-  return <div><button disabled={pdf.pendingKey === 'work'} onClick={() => void pdf.download('work', () => reportingApi.workOrderPdf('work'))}>İş Emri PDF İndir</button><button disabled={pdf.pendingKey === 'delivery'} onClick={() => void pdf.download('delivery', () => reportingApi.deliveryPdf('delivery'))}>Teslimat Listesini İndir</button><button disabled={pdf.pendingKey === 'account'} onClick={() => void pdf.download('account', () => reportingApi.accountPdf('account'))}>Cari Ekstre İndir</button></div>;
+  return <div><button disabled={pdf.pendingKey === 'work'} onClick={() => void pdf.download('work', () => reportingApi.workOrderPdf('work'))}>İş Emri PDF İndir</button><button disabled={pdf.pendingKey === 'delivery'} onClick={() => void pdf.download('delivery', () => reportingApi.deliveryPdf('delivery'))}>Teslimat Listesini İndir</button><button disabled={pdf.pendingKey === 'account'} onClick={() => void pdf.download('account', () => reportingApi.accountPdf('account'))}>Cari Ekstre İndir</button><button disabled={pdf.pendingKey === 'active-wo'} onClick={() => void pdf.download('active-wo', () => reportingApi.activeWorkOrdersPdf('customer-1'))}>Eldeki İşleri İndir</button></div>;
 }
 
 describe('PDF download UX', () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.mocked(reportingApi.workOrderPdf).mockImplementation(() => result('is-emri.pdf')); vi.mocked(reportingApi.deliveryPdf).mockImplementation(() => result('teslimat.pdf')); vi.mocked(reportingApi.accountPdf).mockImplementation(() => result('ekstre.pdf')); });
+  beforeEach(() => { vi.clearAllMocks(); vi.mocked(reportingApi.workOrderPdf).mockImplementation(() => result('is-emri.pdf')); vi.mocked(reportingApi.deliveryPdf).mockImplementation(() => result('teslimat.pdf')); vi.mocked(reportingApi.accountPdf).mockImplementation(() => result('ekstre.pdf')); vi.mocked(reportingApi.activeWorkOrdersPdf).mockImplementation(() => result('eldeki-isler.pdf')); });
 
-  it('iş emri, teslimat ve cari ekstre Blob dosyalarını cookie uyumlu API üzerinden indirir', async () => {
-    render(<Harness />, { wrapper: Providers }); fireEvent.click(screen.getByRole('button', { name: 'İş Emri PDF İndir' })); fireEvent.click(screen.getByRole('button', { name: 'Teslimat Listesini İndir' })); fireEvent.click(screen.getByRole('button', { name: 'Cari Ekstre İndir' }));
-    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(3)); expect(reportingApi.workOrderPdf).toHaveBeenCalledWith('work'); expect(reportingApi.deliveryPdf).toHaveBeenCalledWith('delivery'); expect(reportingApi.accountPdf).toHaveBeenCalledWith('account'); expect(toast.success).toHaveBeenCalledWith('PDF hazırlandı', 'Dosya indirildi.');
+  it('iş emri, teslimat, cari ekstre ve eldeki işler Blob dosyalarını cookie uyumlu API üzerinden indirir', async () => {
+    render(<Harness />, { wrapper: Providers }); fireEvent.click(screen.getByRole('button', { name: 'İş Emri PDF İndir' })); fireEvent.click(screen.getByRole('button', { name: 'Teslimat Listesini İndir' })); fireEvent.click(screen.getByRole('button', { name: 'Cari Ekstre İndir' })); fireEvent.click(screen.getByRole('button', { name: 'Eldeki İşleri İndir' }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(4)); expect(reportingApi.workOrderPdf).toHaveBeenCalledWith('work'); expect(reportingApi.deliveryPdf).toHaveBeenCalledWith('delivery'); expect(reportingApi.accountPdf).toHaveBeenCalledWith('account'); expect(reportingApi.activeWorkOrdersPdf).toHaveBeenCalledWith('customer-1'); expect(toast.success).toHaveBeenCalledWith('PDF hazırlandı', 'Dosya indirildi.');
   });
 
   it('PDF hazırlanırken ilgili aksiyonu loading/disabled durumuna alır', async () => {

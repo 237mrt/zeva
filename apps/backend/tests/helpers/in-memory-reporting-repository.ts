@@ -1,5 +1,6 @@
 import type {
   AccountStatementPdfSource,
+  CustomerActiveWorkOrdersPdfSource,
   CustomerReportQuery,
   CustomerReportSource,
   DashboardSource,
@@ -107,6 +108,61 @@ export class InMemoryReportingRepository implements ReportingRepository {
     ],
   };
 
+  public activeWorkOrdersPdfSource: CustomerActiveWorkOrdersPdfSource | null = {
+    customer,
+    generatedAt: at(12),
+    items: [
+      {
+        id: 'wo-active-1',
+        productName: 'Şampiyon Forma',
+        type: 'IRONING_PACKAGING',
+        status: 'IN_PROGRESS',
+        totalQuantity: 1000,
+        deliveredQuantity: 250,
+        remainingQuantity: 750,
+        sackCount: 2,
+        boxCount: 1,
+        packagedQuantity: 750,
+        receivedAt: at(5),
+        dueAt: at(15),
+        notes: 'Öncelikli iş emri',
+        packages: [
+          { sequenceNo: 1, type: 'SACK', quantity: 250, delivered: true },
+          { sequenceNo: 2, type: 'SACK', quantity: 250, delivered: false },
+          { sequenceNo: 3, type: 'BOX', quantity: 250, delivered: false },
+        ],
+      },
+      {
+        id: 'wo-active-2',
+        productName: 'Galatasaray Çocuk Takım',
+        type: 'IRONING',
+        status: 'READY',
+        totalQuantity: 500,
+        deliveredQuantity: 0,
+        remainingQuantity: 500,
+        sackCount: 2,
+        boxCount: 0,
+        packagedQuantity: 500,
+        receivedAt: at(6),
+        dueAt: null,
+        notes: null,
+        packages: [
+          { sequenceNo: 1, type: 'SACK', quantity: 250, delivered: false },
+          { sequenceNo: 2, type: 'SACK', quantity: 250, delivered: false },
+        ],
+      },
+    ],
+    summary: {
+      totalWorkOrders: 2,
+      totalQuantity: 1500,
+      totalDeliveredQuantity: 250,
+      totalRemainingQuantity: 1250,
+      totalSacks: 4,
+      totalBoxes: 1,
+      totalPackagedQuantity: 1250,
+    },
+  };
+
   public getDashboard(now: Date, monthStart: Date, nextMonth: Date): Promise<DashboardSource> { this.lastDashboardRange = { now, monthStart, nextMonth }; return Promise.resolve(this.dashboardSource); }
   public getWorkOrderReport(query: WorkOrderReportQuery): Promise<WorkOrderReportSource> { this.lastWorkOrderQuery = query; return Promise.resolve(this.workOrderSource); }
   public getDeliveryReport(query: DeliveryReportQuery): Promise<DeliveryReportSource> { this.lastDeliveryQuery = query; return Promise.resolve(this.deliverySource); }
@@ -115,4 +171,5 @@ export class InMemoryReportingRepository implements ReportingRepository {
   public findWorkOrderForPdf(): Promise<WorkOrderPdfSource | null> { return Promise.resolve(this.workOrderPdfSource); }
   public findDeliveryForPdf(): Promise<DeliveryPdfSource | null> { return Promise.resolve(this.deliveryPdfSource); }
   public getAccountStatementForPdf(_customerId: string, range: { from?: Date | undefined; to?: Date | undefined }, limit: number): Promise<AccountStatementPdfSource | null> { this.lastAccountRange = range; this.lastAccountLimit = limit; return Promise.resolve(this.accountSource); }
+  public getCustomerActiveWorkOrdersForPdf(): Promise<CustomerActiveWorkOrdersPdfSource | null> { return Promise.resolve(this.activeWorkOrdersPdfSource); }
 }
